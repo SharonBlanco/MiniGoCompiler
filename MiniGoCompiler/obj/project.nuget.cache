@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "D9sdUU5otks=",
+  "success": true,
+  "projectFilePath": "/home/sharonblancopiedra/Documents/VII SEMESTRE/COMPILADORES/SEMANA 12/MiniGoCompiler/MiniGoCompiler/MiniGoCompiler.csproj",
+  "expectedPackageFiles": [
+    "/home/sharonblancopiedra/.nuget/packages/antlr4.runtime.standard/4.13.1/antlr4.runtime.standard.4.13.1.nupkg.sha512"
+  ],
+  "logs": []
+}

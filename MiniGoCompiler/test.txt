@@ -1,0 +1,63 @@
+package hola;
+//function declarration
+func ordenar(s,x int, d int) int{
+print(1);
+return 1;
+};
+
+func main () {
+// var y type declaration
+var x, d []int = `hola`;
+var y int = 2;
+var (z,a = cap(d););
+type h int;
+//struct
+type h struct{l int;};
+type ();
+//arrays
+type (x [2]int; s []string;);
+
+//block
+{
+type x int;
+};
+
+//simpleStatements
+y--;
+y++;
+x, y = s, t;
+x+= 2;
+x := 2;
+
+switch x++; int {
+    case int: -x +2;
+};
+switch x+2 { // 
+case int: 
+  if x+2== 3{
+     x == 0;
+  };
+default :
+   if x-1 == 4{ 
+   x++;
+   } else {
+   x--;};
+};
+
+
+switch 2 := 2;
+{
+case 2:
+   if id := 2; 2+2 {
+   print();
+   };
+   if id := 2; 2+2 {
+      print();
+      };
+   if bul & bul; 2+2 {
+   x = true;
+   } else if 2>3{
+     print();
+};
+};
+};
