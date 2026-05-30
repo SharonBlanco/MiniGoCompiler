@@ -16,3 +16,4 @@
 /home/sharonblancopiedra/Documents/VII SEMESTRE/COMPILADORES/SEMANA 12/MiniGoCompiler/MiniGoCompiler/obj/Debug/net9.0/MiniGoCompiler.genruntimeconfig.cache
 /home/sharonblancopiedra/Documents/VII SEMESTRE/COMPILADORES/SEMANA 12/MiniGoCompiler/MiniGoCompiler/obj/Debug/net9.0/ref/MiniGoCompiler.dll
 /home/sharonblancopiedra/Documents/VII SEMESTRE/COMPILADORES/SEMANA 12/MiniGoCompiler/MiniGoCompiler/bin/Debug/net9.0/test.txt
+/home/sharonblancopiedra/Documents/VII SEMESTRE/COMPILADORES/SEMANA 12/MiniGoCompiler/MiniGoCompiler/obj/Debug/net9.0/MiniGoCompiler.sourcelink.json

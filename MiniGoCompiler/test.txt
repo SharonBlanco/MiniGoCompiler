@@ -58,6 +58,25 @@ case 2:
    x = true;
    } else if 2>3{
      print();
+   for {
+     if x <= 2 {
+        return 0;
+     
+     };
+     x--;
+     
+   };
+   for x<=2{
+   x--;
+   
+   };
+   for x :=0; x+1; x++{
+      var x int;
+   };
+   
 };
+
+
+
 };
 };

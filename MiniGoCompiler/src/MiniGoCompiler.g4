@@ -136,11 +136,16 @@ variableDecl          : VAR singleVarDecl SEMI
 
 innerVarDecls         : (singleVarDecl SEMI)+;
 
-singleVarDecl         : identifierList declType EQUAL expressionList       #typedVarDecl
+singleVarDecl
+locals [ParserRuleContext decl = null]    
+                      : identifierList declType EQUAL expressionList       #typedVarDecl
                       | identifierList EQUAL expressionList                #inferredVarDecl
                       | singleVarDeclNoExps                                #noExpressionVarDecl;
 
-singleVarDeclNoExps   : identifierList declType;
+
+singleVarDeclNoExps   
+locals [ParserRuleContext decl = null] 
+                      : identifierList declType;
 
 typeDecl              : TYPE singleTypeDecl SEMI
                       | TYPE LEFTP innerTypeDecls? RIGHTP SEMI;
@@ -149,14 +154,16 @@ innerTypeDecls        : (singleTypeDecl SEMI)+;
 
 singleTypeDecl        : IDENTIFIER declType;
 
-funcDecl              : funcFrontDecl block SEMI;
+funcDecl              
+                      locals [ParserRuleContext decl = null]  
+                      : funcFrontDecl block SEMI;
 
 funcFrontDecl         : FUNC IDENTIFIER LEFTP funcArgDecls? RIGHTP declType?;
 
 funcArgDecls          : singleVarDeclNoExps (COMMA singleVarDeclNoExps)*;
 
 declType              : LEFTP declType RIGHTP                              #groupDeclType
-                      | typeDenoter                                        #typeDenoterDeclType
+                      | identifier                                        #typeDenoterDeclType
                       | sliceDeclType                                      #sliceTypeDecl
                       | arrayDeclType                                      #arrayTypeDecl
                       | structDeclType                                     #structTypeDecl;
@@ -191,11 +198,12 @@ primaryExpression     : operand                                            #oper
                       | appendExpression                                   #appendPrimaryExpr
                       | lengthExpression                                   #lengthPrimaryExpr
                       | capExpression                                      #capPrimaryExpr;
-                      
-typeDenoter          : IDENTIFIER                                                         ;
+                                                                            
+
+
 
 operand               : literal                                            #literalOperand
-                      | IDENTIFIER                                         #idOperand
+                      | identifier                                         #idOperand
                       | LEFTP expression RIGHTP                            #groupOperand;
 
 literal               : INTLITERAL                                         #intLiteral
@@ -275,3 +283,10 @@ expressionCaseClause  : expressionSwitchCase COLON statementList;
 
 expressionSwitchCase  : CASE expressionList                                #caseSwitch
                       | DEFAULT                                            #defaultSwitch;
+                      
+identifier                
+locals [ParserRuleContext decl = null]  
+                      
+                          : IDENTIFIER;
+           
+                   

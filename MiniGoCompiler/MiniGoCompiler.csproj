@@ -10,8 +10,7 @@
     <ItemGroup>
       <Folder Include="src\encoder\" />
       <Folder Include="src\ide_gui\" />
-      <Folder Include="src\syntaxchecker\" />
-      <Folder Include="src\typechecker\" />
+      <Folder Include="src\syntaxchecker\generated\" />
     </ItemGroup>
 
     <ItemGroup>

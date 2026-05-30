@@ -1,4 +1,5 @@
 ﻿using Antlr4.Runtime;
+using syntaxchecker.generated;
 
 class Program
 {
