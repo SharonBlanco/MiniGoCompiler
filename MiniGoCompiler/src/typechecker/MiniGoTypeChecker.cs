@@ -14,7 +14,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     private Stack<bool> stackBool = new Stack<bool>();
 
 
-    public void MiniGoCompilerTypeChecker()
+    public MiniGoTypeChecker()
     {
         this.symbolsTable = new SymbolsTable();
         this.errorList = new LinkedList<string>();
@@ -109,10 +109,11 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             SymbolsTable.TypeInfo declaredType = (SymbolsTable.TypeInfo)Visit(context.declType());
             var identList = context.identifierList().IDENTIFIER();
-            SymbolsTable.TypeInfo exprType = (SymbolsTable.TypeInfo)Visit(context.expressionList());
-            foreach (var id in identList)
+            LinkedList<SymbolsTable.TypeInfo> exprTypes = (LinkedList<SymbolsTable.TypeInfo>)Visit(context.expressionList());
+            for (int i = 0; i < identList.Length; i++)
             {
-                IToken token = id.Symbol;
+                IToken token = identList[i].Symbol;
+                SymbolsTable.TypeInfo exprType = exprTypes.ElementAt(i);
 
                 SymbolsTable.Ident ident = symbolsTable.SearchActualLevel(token.Text);
                 if (ident != null)
@@ -122,13 +123,14 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
                 }
                 else
                 {
-                    if (declaredType!= exprType)
+                    if (declaredType.Equals(exprType)!)
                     {
                         syntaxError("Invalid types in assign ", token, declaredType, exprType);
-                        symbolsTable.InsertVariableLevel(token, declaredType, symbolsTable.GetActualLevel(), context);
                     }
+                    symbolsTable.InsertVariableLevel(token, declaredType, symbolsTable.GetActualLevel(), context);
                 }
             }
+            context.decl = context;
         } catch (TypeErrorException e){}
 
         return null;
@@ -137,135 +139,343 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
 
     public override object VisitInferredVarDecl(MiniGoCompilerParser.InferredVarDeclContext context)
     {
-        Visit(context.identifierList());
-        Visit(context.expressionList());
+        try
+        {
+            LinkedList<SymbolsTable.TypeInfo> exprTypes = (LinkedList<SymbolsTable.TypeInfo>)Visit(context.expressionList());
+            var identList = context.identifierList().IDENTIFIER();
+            if (identList.Length != exprTypes.Count)
+            {
+                syntaxError("Identifier count does not match expression count", identList[0].Symbol);
+                return null;
+            }
+
+            for (int i = 0; i < identList.Length; i++)
+            {
+                IToken token = identList[i].Symbol;
+                SymbolsTable.TypeInfo exprType = exprTypes.ElementAt(i);
+                SymbolsTable.Ident ident = symbolsTable.SearchActualLevel(token.Text);
+                if (ident != null)
+                {
+                    syntaxError("Variable already declared", token);
+                    
+                }
+                else
+                {
+                    symbolsTable.InsertVariableLevel(token, exprType, symbolsTable.GetActualLevel(), context);
+                    
+                }
+
+            }
+            
+        } catch (TypeErrorException e){}
+        context.decl = context;
+
         return null;
     }
 
     public override object VisitNoExpressionVarDecl(MiniGoCompilerParser.NoExpressionVarDeclContext context)
     {
-        Visit(context.singleVarDeclNoExps());
-        return null;
+        return Visit(context.singleVarDeclNoExps());
     }
 
     public override object VisitSingleVarDeclNoExps(MiniGoCompilerParser.SingleVarDeclNoExpsContext context)
     {
-        return null;
+        try {
+        SymbolsTable.TypeInfo declaredType = (SymbolsTable.TypeInfo)Visit(context.declType());
+        foreach (var id in context.identifierList().IDENTIFIER())
+        {
+            IToken token = id.Symbol;
+            SymbolsTable.Ident ident = symbolsTable.SearchActualLevel(token.Text);
+            if (ident != null)
+            {
+                    syntaxError("Variable already declared", token);
+            }
+            else
+            {
+                symbolsTable.InsertVariableLevel(token, declaredType, symbolsTable.GetActualLevel(),context);
+            }
+        }
+        context.decl = context;
+        } catch (TypeErrorException e){}
+        return null; 
     }
 
     public override object VisitTypeDecl(MiniGoCompilerParser.TypeDeclContext context)
     {
-        return base.VisitTypeDecl(context);
+        try {
+        if (context.singleTypeDecl() != null)
+        {
+            Visit(context.singleTypeDecl());
+        }
+        if (context.innerTypeDecls() != null)
+        {
+            Visit(context.innerTypeDecls());
+        }
+        } catch (TypeErrorException e){}
+        return null;
     }
 
     public override object VisitInnerTypeDecls(MiniGoCompilerParser.InnerTypeDeclsContext context)
     {
-        return base.VisitInnerTypeDecls(context);
+        try
+        {
+            foreach (var std in context.singleTypeDecl())
+            {
+                Visit(std);
+            }
+        } catch  (TypeErrorException e){}
+        return null;
     }
 
     public override object VisitSingleTypeDecl(MiniGoCompilerParser.SingleTypeDeclContext context)
     {
-        return base.VisitSingleTypeDecl(context);
+        try
+        {
+            SymbolsTable.TypeInfo declaredType = (SymbolsTable.TypeInfo) Visit(context.declType());
+            SymbolsTable.Ident ident = symbolsTable.SearchActualLevel(context.IDENTIFIER().GetText());
+            if (ident != null)
+            {
+                syntaxError("Type already declared", context.IDENTIFIER().Symbol);
+            }
+            else
+            {
+                symbolsTable.InsertTypeLevel(context.IDENTIFIER().Symbol, declaredType,  symbolsTable.GetActualLevel(), context);
+            }
+        } catch (TypeErrorException e){}
+
+        return null;
     }
 
     public override object VisitFuncDecl(MiniGoCompilerParser.FuncDeclContext context)
-    {
-        return base.VisitFuncDecl(context);
+    { 
+        try
+        {
+            var front = context.funcFrontDecl();
+            SymbolsTable.TypeInfo returnType = null;
+            if (front.declType() != null)
+                returnType = (SymbolsTable.TypeInfo) Visit(front.declType());
+            
+            SymbolsTable.Ident ident = symbolsTable.SearchActualLevel(front.IDENTIFIER().GetText());
+            if (ident != null)
+                syntaxError("Function already declared", front.IDENTIFIER().Symbol);
+            LinkedList<SymbolsTable.TypeInfo> paramTypes = new LinkedList<SymbolsTable.TypeInfo>();
+            if (front.funcArgDecls() != null)
+            {
+                foreach (var param in front.funcArgDecls().singleVarDeclNoExps())
+                {
+                    SymbolsTable.TypeInfo t = (SymbolsTable.TypeInfo)Visit(param.declType());
+                    paramTypes.AddLast(t);
+                }
+            }
+            
+            symbolsTable.InsertMethod(front.IDENTIFIER().Symbol, returnType,
+                symbolsTable.GetActualLevel(), paramTypes, context);
+            symbolsTable.OpenScope();
+            if (front.funcArgDecls() != null)
+                Visit(front.funcArgDecls());
+            Visit(context.block());
+            symbolsTable.CloseScope();
+            context.decl = context;
+        }
+        catch (TypeErrorException e) { }
+
+        return null;
     }
 
     public override object VisitFuncFrontDecl(MiniGoCompilerParser.FuncFrontDeclContext context)
     {
-        return base.VisitFuncFrontDecl(context);
+        return null;
     }
 
     public override object VisitFuncArgDecls(MiniGoCompilerParser.FuncArgDeclsContext context)
     {
-        return base.VisitFuncArgDecls(context);
+        foreach (var fad in context.singleVarDeclNoExps())
+        {
+            Visit(fad);
+        }
+        return null;
     }
 
     public override object VisitGroupDeclType(MiniGoCompilerParser.GroupDeclTypeContext context)
     {
-        return base.VisitGroupDeclType(context);
+        SymbolsTable.TypeInfo declareType =  (SymbolsTable.TypeInfo) Visit(context.declType());
+        return declareType;
     }
 
     public override object VisitTypeDenoterDeclType(MiniGoCompilerParser.TypeDenoterDeclTypeContext context)
     {
-        return base.VisitTypeDenoterDeclType(context);
+        string typeName = context.identifier().IDENTIFIER().GetText();
+    
+        switch (typeName)
+        {
+            case "int":
+                return new SymbolsTable.TypeInfo("simple", 0, 0, null, null);
+            case "float64":
+                return new SymbolsTable.TypeInfo("simple", 1, 0, null, null);
+            case "string":
+                return new SymbolsTable.TypeInfo("simple", 2, 0, null, null);
+            case "rune":
+                return new SymbolsTable.TypeInfo("simple", 3, 0, null, null);
+            case "bool":
+                return new SymbolsTable.TypeInfo("simple", 4, 0, null, null);
+            default:
+                SymbolsTable.Ident ident = symbolsTable.Search(typeName);
+                if (ident != null) {
+                    return ident.Type;
+                }
+                syntaxError("Undefined type", context.identifier().IDENTIFIER().Symbol);
+                return null;
+        }
     }
 
     public override object VisitSliceTypeDecl(MiniGoCompilerParser.SliceTypeDeclContext context)
     {
-        return base.VisitSliceTypeDecl(context);
+        SymbolsTable.TypeInfo declareType = (SymbolsTable.TypeInfo) Visit(context.sliceDeclType().declType());
+        SymbolsTable.TypeInfo slice =new SymbolsTable.TypeInfo("slice", -1, -1, declareType, null);
+        return slice;
     }
 
     public override object VisitArrayTypeDecl(MiniGoCompilerParser.ArrayTypeDeclContext context)
     {
-        return base.VisitArrayTypeDecl(context);
+        SymbolsTable.TypeInfo declareType = (SymbolsTable.TypeInfo) Visit(context.arrayDeclType().declType());
+        int size = int.Parse(context.arrayDeclType().INTLITERAL().GetText());
+        SymbolsTable.TypeInfo array =new SymbolsTable.TypeInfo("array", -1, size , declareType, null);
+        return array;
     }
 
     public override object VisitStructTypeDecl(MiniGoCompilerParser.StructTypeDeclContext context)
     {
-        return base.VisitStructTypeDecl(context);
+        Dictionary<string, SymbolsTable.TypeInfo> fields = new Dictionary<string, SymbolsTable.TypeInfo>();
+    
+        if (context.structDeclType().structMemDecls() != null)
+            fields = (Dictionary<string, SymbolsTable.TypeInfo>)Visit(context.structDeclType().structMemDecls());
+    
+        return new SymbolsTable.TypeInfo("struct", -1, -1, null, fields);
     }
 
     public override object VisitSliceDeclType(MiniGoCompilerParser.SliceDeclTypeContext context)
     {
-        return base.VisitSliceDeclType(context);
+        return null;
     }
 
     public override object VisitArrayDeclType(MiniGoCompilerParser.ArrayDeclTypeContext context)
     {
-        return base.VisitArrayDeclType(context);
+        return null;
     }
 
     public override object VisitStructDeclType(MiniGoCompilerParser.StructDeclTypeContext context)
     {
-        return base.VisitStructDeclType(context);
+        return null;
     }
 
     public override object VisitStructMemDecls(MiniGoCompilerParser.StructMemDeclsContext context)
     {
-        return base.VisitStructMemDecls(context);
+        Dictionary<string, SymbolsTable.TypeInfo> fields = new Dictionary<string, SymbolsTable.TypeInfo>();
+    
+        foreach (var member in context.singleVarDeclNoExps())
+        {
+            SymbolsTable.TypeInfo memberType = (SymbolsTable.TypeInfo)Visit(member.declType());
+            foreach (var id in member.identifierList().IDENTIFIER())
+            {
+                fields[id.GetText()] = memberType;
+            }
+        }
+    
+        return fields;
     }
 
     public override object VisitIdentifierList(MiniGoCompilerParser.IdentifierListContext context)
     {
-        return base.VisitIdentifierList(context);
+        return null;
     }
 
     public override object VisitExpressionList(MiniGoCompilerParser.ExpressionListContext context)
     {
-        return base.VisitExpressionList(context);
+        LinkedList<SymbolsTable.TypeInfo> types = new LinkedList<SymbolsTable.TypeInfo>();
+        foreach (var expr in context.expression())
+        {
+            SymbolsTable.TypeInfo t = (SymbolsTable.TypeInfo)Visit(expr);
+            types.AddLast(t);
+        }
+        return types;
     }
 
     public override object VisitPrimaryExpr(MiniGoCompilerParser.PrimaryExprContext context)
     {
-        return base.VisitPrimaryExpr(context);
+        return Visit(context.primaryExpression());
     }
 
     public override object VisitUnarySubExpr(MiniGoCompilerParser.UnarySubExprContext context)
     {
-        return base.VisitUnarySubExpr(context);
+        SymbolsTable.TypeInfo type = (SymbolsTable.TypeInfo) Visit(context.expression());
+        if (type != null && type.Category == "simple" && type.SimpleType != 0 && type.SimpleType != 1)
+        {
+            syntaxError("Cannot apply '-' to non-numeric type", context.SUB().Symbol);
+        }
+        return type;
     }
 
     public override object VisitAddExpr(MiniGoCompilerParser.AddExprContext context)
     {
-        return base.VisitAddExpr(context);
+        SymbolsTable.TypeInfo left = (SymbolsTable.TypeInfo)Visit(context.expression(0));
+        SymbolsTable.TypeInfo right = (SymbolsTable.TypeInfo)Visit(context.expression(1));
+        IToken op = (context.ADD() ?? context.SUB() ?? context.OR() ?? context.HAT()).Symbol;
+    
+        if (!(left == right))
+        {
+            syntaxError("Incompatible types in expression", op);
+        }
+
+        if ((context.HAT() != null || context.OR() != null) && left.SimpleType != 0)
+        {
+            syntaxError("Bitwise operator requires integer type", op);
+        }
+        return left;
     }
 
     public override object VisitMulExpr(MiniGoCompilerParser.MulExprContext context)
     {
-        return base.VisitMulExpr(context);
+        SymbolsTable.TypeInfo left = (SymbolsTable.TypeInfo)Visit(context.expression(0));
+        SymbolsTable.TypeInfo right = (SymbolsTable.TypeInfo)Visit(context.expression(1));
+        IToken op = (context.MUL() ?? context.DIV() ?? context.MOD() ?? context.DLESS() ?? context.DMORE() ?? context.AND() ?? context.ANDHAT()).Symbol;
+        if (left != right)
+        {
+            syntaxError("Incompatible types in expression", op);
+        }
+        if ((context.ANDHAT() != null || context.MOD() != null || context.AND() != null
+             || context.DLESS() != null || context.DMORE() != null) && left.SimpleType != 0)
+        {
+            syntaxError("Bitwise operator requires integer type", op);
+        }
+        if ((context.MUL() !=  null || context.DIV() != null ) && right.SimpleType != 0 && right.SimpleType != 1)
+        {
+            syntaxError("Operation requires numeric type", op);
+        }
+        return left;
+        
     }
 
     public override object VisitOrExpr(MiniGoCompilerParser.OrExprContext context)
     {
-        return base.VisitOrExpr(context);
+        SymbolsTable.TypeInfo left = (SymbolsTable.TypeInfo)Visit(context.expression(0));
+        SymbolsTable.TypeInfo right = (SymbolsTable.TypeInfo)Visit(context.expression(1));
+        IToken op = context.DOR().Symbol;
+
+        if (left.SimpleType != 4 || right.SimpleType != 4)
+        {
+            syntaxError("Logical operator requires boolean type", op);
+        }
+        return left;
     }
 
     public override object VisitUnaryHatExpr(MiniGoCompilerParser.UnaryHatExprContext context)
     {
-        return base.VisitUnaryHatExpr(context);
+        SymbolsTable.TypeInfo type = (SymbolsTable.TypeInfo)Visit(context.expression());
+        if (type != null && type.SimpleType != 0)
+        {
+            syntaxError("Cannot apply '^' to non-integer type", context.HAT().Symbol);
+        }
+        return type;
     }
 
     public override object VisitUnaryAddExpr(MiniGoCompilerParser.UnaryAddExprContext context)
@@ -275,12 +485,32 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
 
     public override object VisitRelExpr(MiniGoCompilerParser.RelExprContext context)
     {
-        return base.VisitRelExpr(context);
+        SymbolsTable.TypeInfo left = (SymbolsTable.TypeInfo)Visit(context.expression(0));
+        SymbolsTable.TypeInfo right = (SymbolsTable.TypeInfo)Visit(context.expression(1));
+        IToken op = (context.EQEQ() ?? context.NOTEQ() ?? context.LESS() ?? context.LESSEQ() ?? context.MORET() ?? context.MOREEQ()).Symbol;
+        if (left != right)
+        {
+            syntaxError("Incompatible types in expression", op);
+        }
+        if ((context.LESS() != null || context.LESSEQ() != null || context.MORET() != null || context.MOREEQ() != null) 
+            && left.SimpleType == 4)
+        {
+            syntaxError("Cannot compare bool with ordering operator", op);
+        }
+
+        return new SymbolsTable.TypeInfo("simple", 4, 0, null, null);
+        
+        
     }
 
     public override object VisitUnaryNotExpr(MiniGoCompilerParser.UnaryNotExprContext context)
     {
-        return base.VisitUnaryNotExpr(context);
+        SymbolsTable.TypeInfo type = (SymbolsTable.TypeInfo)Visit(context.expression());
+        if (type != null && type.SimpleType != 4)
+        {
+            syntaxError("Cannot apply '!' to non-bool type", context.NOT().Symbol);
+        }
+        return type;
     }
 
     public override object VisitAndExpr(MiniGoCompilerParser.AndExprContext context)

@@ -25,9 +25,16 @@ public class SymbolsTable
         public int Size => size;
         public TypeInfo InsideType => insideType;
         public Dictionary<string, TypeInfo> Fields => fields;
+
+    public TypeInfo(string category, int simpleType, int size, TypeInfo insideType, Dictionary<string, TypeInfo> fields)
+    {
+        this.category = category;
+        this.simpleType = simpleType;
+        this.size = size;
+        this.insideType = insideType;
+        this.fields = fields;
     }
-    
-    
+}
     
     
     

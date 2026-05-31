@@ -163,7 +163,7 @@ funcFrontDecl         : FUNC IDENTIFIER LEFTP funcArgDecls? RIGHTP declType?;
 funcArgDecls          : singleVarDeclNoExps (COMMA singleVarDeclNoExps)*;
 
 declType              : LEFTP declType RIGHTP                              #groupDeclType
-                      | identifier                                        #typeDenoterDeclType
+                      | identifier                                         #typeDenoterDeclType
                       | sliceDeclType                                      #sliceTypeDecl
                       | arrayDeclType                                      #arrayTypeDecl
                       | structDeclType                                     #structTypeDecl;
