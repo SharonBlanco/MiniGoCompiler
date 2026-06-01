@@ -1,5 +1,6 @@
 ﻿using Antlr4.Runtime;
 using syntaxchecker.generated;
+using MiniGoCompiler.ide;
 
 class Program
 {
@@ -33,5 +34,11 @@ class Program
         {
             Console.WriteLine($"Archivo inválido. Errores encontrados: {parser.NumberOfSyntaxErrors}");
         }
+        var server = new CompilerServer();
+        server.Start();
+        Console.WriteLine("Presionar Enter para salir...");
+        Console.ReadLine();
+
+
     }
 }

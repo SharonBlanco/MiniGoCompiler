@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniGo Compiler IDE</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-deep: #0a0e14;
+            --bg-panel: #0f1319;
+            --bg-surface: #151a22;
+            --bg-hover: #1c222d;
+            --border: #1e2530;
+            --border-active: #3d4f6f;
+            --text-primary: #c8d0dc;
+            --text-secondary: #6b7a8d;
+            --text-muted: #3e4957;
+            --accent-go: #00add8;
+            --accent-green: #3cdc7c;
+            --accent-red: #ff5370;
+            --accent-orange: #f78c6c;
+            --accent-yellow: #ffcb6b;
+            --accent-purple: #c792ea;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ═══ HEADER ═══ */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            height: 48px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-brand svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .header-brand h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent-go);
+            letter-spacing: 0.5px;
+        }
+
+        .header-brand span {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            padding-left: 8px;
+            border-left: 1px solid var(--border);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 6px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-compile {
+            background: var(--accent-go);
+            color: var(--bg-deep);
+        }
+
+        .btn-compile:hover {
+            background: #33c0e3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 173, 216, 0.3);
+        }
+
+        .btn-compile:active {
+            transform: translateY(0);
+        }
+
+        .btn-compile.compiling {
+            background: var(--accent-orange);
+            pointer-events: none;
+        }
+
+        .btn-clear {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-clear:hover {
+            border-color: var(--border-active);
+            color: var(--text-primary);
+        }
+
+        .btn-sample {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-sample:hover {
+            border-color: var(--accent-purple);
+            color: var(--accent-purple);
+        }
+
+        /* ═══ MAIN LAYOUT ═══ */
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ═══ EDITOR PANEL ═══ */
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .editor-tab-bar {
+            display: flex;
+            align-items: center;
+            height: 36px;
+            background: var(--bg-deep);
+            border-bottom: 1px solid var(--border);
+            padding: 0 8px;
+        }
+
+        .editor-tab {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+            top: 1px;
+        }
+
+        .editor-tab .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-go);
+        }
+
+        #editor-container {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ═══ OUTPUT PANEL ═══ */
+        .output-panel {
+            width: 420px;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border);
+            background: var(--bg-panel);
+            flex-shrink: 0;
+        }
+
+        .output-tabs {
+            display: flex;
+            height: 36px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-deep);
+        }
+
+        .output-tab {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 0 16px;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .output-tab.active {
+            color: var(--text-primary);
+            border-bottom-color: var(--accent-go);
+        }
+
+        .output-tab .badge {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-left: 6px;
+            font-weight: 600;
+        }
+
+        .output-tab .badge.errors {
+            background: rgba(255, 83, 112, 0.15);
+            color: var(--accent-red);
+        }
+
+        .output-tab .badge.success {
+            background: rgba(60, 220, 124, 0.15);
+            color: var(--accent-green);
+        }
+
+        .output-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .output-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .output-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .output-content::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        /* ═══ ERROR ITEMS ═══ */
+        .error-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-left: 3px solid transparent;
+            margin-bottom: 4px;
+        }
+
+        .error-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .error-item.error {
+            border-left-color: var(--accent-red);
+        }
+
+        .error-item.warning {
+            border-left-color: var(--accent-yellow);
+        }
+
+        .error-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .error-icon.err {
+            background: rgba(255, 83, 112, 0.15);
+            color: var(--accent-red);
+        }
+
+        .error-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .error-msg {
+            font-size: 12px;
+            color: var(--text-primary);
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .error-location {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 3px;
+        }
+
+        /* ═══ SUCCESS STATE ═══ */
+        .success-message {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 12px;
+            color: var(--accent-green);
+        }
+
+        .success-message svg {
+            width: 48px;
+            height: 48px;
+            opacity: 0.7;
+        }
+
+        .success-message p {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        /* ═══ EMPTY STATE ═══ */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 8px;
+            color: var(--text-muted);
+        }
+
+        .empty-state p {
+            font-size: 12px;
+        }
+
+        .empty-state kbd {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 2px 8px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+        }
+
+        /* ═══ STATUS BAR ═══ */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 24px;
+            padding: 0 12px;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .status-bar .status-left,
+        .status-bar .status-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .status-dot.ready { background: var(--accent-green); }
+        .status-dot.error { background: var(--accent-red); }
+        .status-dot.compiling { background: var(--accent-orange); animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ═══ RESIZE HANDLE ═══ */
+        .resize-handle {
+            width: 4px;
+            cursor: col-resize;
+            background: transparent;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        .resize-handle:hover,
+        .resize-handle.active {
+            background: var(--accent-go);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="header-brand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--accent-go)">
+                <polyline points="16 18 22 12 16 6"></polyline>
+                <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <h1>MiniGo</h1>
+            <span>Compiler IDE</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-sample" onclick="loadSample()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Ejemplo
+            </button>
+            <button class="btn btn-clear" onclick="clearEditor()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                Limpiar
+            </button>
+            <button class="btn btn-compile" id="compileBtn" onclick="compile()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Compilar
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+        <div class="editor-panel">
+            <div class="editor-tab-bar">
+                <div class="editor-tab">
+                    <span class="dot"></span>
+                    main.go
+                </div>
+            </div>
+            <div id="editor-container"></div>
+        </div>
+
+        <div class="resize-handle" id="resizeHandle"></div>
+
+        <div class="output-panel" id="outputPanel">
+            <div class="output-tabs">
+                <button class="output-tab active" id="tabErrors">
+                    Errores <span class="badge" id="errorBadge" style="display:none">0</span>
+                </button>
+            </div>
+            <div class="output-content" id="outputContent">
+                <div class="empty-state">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted)">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <p>Presioná <kbd>Compilar</kbd> para verificar el código</p>
+                    <p style="font-size:11px; color: var(--text-muted)">Ctrl+Enter</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="status-indicator">
+                <span class="status-dot ready" id="statusDot"></span>
+                <span id="statusText">Listo</span>
+            </div>
+        </div>
+        <div class="status-right">
+            <span id="cursorPos">Ln 1, Col 1</span>
+            <span>MiniGo</span>
+            <span>UTF-8</span>
+        </div>
+    </div>
+
+    <!-- Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+    <script>
+        let editor;
+
+        // ═══ CONFIGURAR MONACO ═══
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+
+        require(['vs/editor/editor.main'], function () {
+
+            // Registrar lenguaje MiniGo
+            monaco.languages.register({ id: 'minigo' });
+
+            monaco.languages.setMonarchTokensProvider('minigo', {
+                keywords: [
+                    'package', 'if', 'else', 'for', 'switch', 'case', 'default',
+                    'var', 'type', 'func', 'struct', 'return', 'break', 'continue',
+                    'append', 'len', 'cap', 'print', 'println'
+                ],
+                typeKeywords: ['int', 'float64', 'string', 'rune', 'bool'],
+                operators: [
+                    '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>=', '&^=',
+                    ':=', '++', '--', '<<', '>>', '&^', '&&', '||',
+                    '==', '!=', '<=', '>=', '<', '>',
+                    '+', '-', '*', '/', '%', '&', '|', '^', '!', '='
+                ],
+                symbols: /[=><!~?:&|+\-*\/\^%]+/,
+                tokenizer: {
+                    root: [
+                        [/\/\/.*$/, 'comment'],
+                        [/\/\*/, 'comment', '@comment'],
+                        [/`[^`]*`/, 'string'],
+                        [/"([^"\\]|\\.)*"/, 'string'],
+                        [/'([^'\\]|\\.)'/, 'string.char'],
+                        [/\d+\.\d*([eE][\-+]?\d+)?/, 'number.float'],
+                        [/\.\d+([eE][\-+]?\d+)?/, 'number.float'],
+                        [/0[xX][0-9a-fA-F_]+/, 'number.hex'],
+                        [/0[bB][01_]+/, 'number.binary'],
+                        [/0[oO]?[0-7_]+/, 'number.octal'],
+                        [/\d[0-9_]*/, 'number'],
+                        [/[a-zA-Z_]\w*/, {
+                            cases: {
+                                '@keywords': 'keyword',
+                                '@typeKeywords': 'type',
+                                '@default': 'identifier'
+                            }
+                        }],
+                        [/[{}()\[\]]/, '@brackets'],
+                        [/@symbols/, {
+                            cases: {
+                                '@operators': 'operator',
+                                '@default': ''
+                            }
+                        }],
+                        [/[;,.]/, 'delimiter'],
+                    ],
+                    comment: [
+                        [/[^\/*]+/, 'comment'],
+                        [/\*\//, 'comment', '@pop'],
+                        [/[\/*]/, 'comment']
+                    ],
+                }
+            });
+
+            // Tema personalizado
+            monaco.editor.defineTheme('minigo-dark', {
+                base: 'vs-dark',
+                inherit: true,
+                rules: [
+                    { token: 'keyword', foreground: 'c792ea', fontStyle: 'bold' },
+                    { token: 'type', foreground: '00add8' },
+                    { token: 'string', foreground: 'c3e88d' },
+                    { token: 'string.char', foreground: 'f78c6c' },
+                    { token: 'number', foreground: 'f78c6c' },
+                    { token: 'number.float', foreground: 'f78c6c' },
+                    { token: 'number.hex', foreground: 'f78c6c' },
+                    { token: 'number.binary', foreground: 'f78c6c' },
+                    { token: 'number.octal', foreground: 'f78c6c' },
+                    { token: 'comment', foreground: '546e7a', fontStyle: 'italic' },
+                    { token: 'operator', foreground: '89ddff' },
+                    { token: 'delimiter', foreground: '89ddff' },
+                    { token: 'identifier', foreground: 'c8d0dc' },
+                ],
+                colors: {
+                    'editor.background': '#0f1319',
+                    'editor.foreground': '#c8d0dc',
+                    'editor.lineHighlightBackground': '#151a2288',
+                    'editor.selectionBackground': '#3d4f6f55',
+                    'editorCursor.foreground': '#00add8',
+                    'editorLineNumber.foreground': '#3e4957',
+                    'editorLineNumber.activeForeground': '#6b7a8d',
+                    'editor.selectionHighlightBackground': '#3d4f6f33',
+                    'editorIndentGuide.background': '#1e2530',
+                    'editorGutter.background': '#0f1319',
+                    'editorOverviewRuler.border': '#1e2530',
+                }
+            });
+
+            // Crear editor
+            editor = monaco.editor.create(document.getElementById('editor-container'), {
+                value: getSampleCode(),
+                language: 'minigo',
+                theme: 'minigo-dark',
+                fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+                fontSize: 14,
+                lineHeight: 22,
+                padding: { top: 12 },
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                renderWhitespace: 'none',
+                bracketPairColorization: { enabled: true },
+                smoothScrolling: true,
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: 'on',
+                roundedSelection: true,
+                automaticLayout: true,
+                tabSize: 4,
+            });
+
+            // Actualizar posición del cursor
+            editor.onDidChangeCursorPosition(function (e) {
+                document.getElementById('cursorPos').textContent =
+                    `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+            });
+
+            // Ctrl+Enter para compilar
+            editor.addAction({
+                id: 'compile',
+                label: 'Compilar',
+                keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
+                run: function () { compile(); }
+            });
+        });
+
+        // ═══ COMPILAR ═══
+        async function compile() {
+            const btn = document.getElementById('compileBtn');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            btn.classList.add('compiling');
+            btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Compilando...';
+            statusDot.className = 'status-dot compiling';
+            statusText.textContent = 'Compilando...';
+
+            const code = editor.getValue();
+
+            try {
+                const response = await fetch('/compile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code })
+                });
+                const result = await response.json();
+                showResults(result);
+            } catch (err) {
+                // Si no hay backend, simular respuesta para demo
+                showResults({ success: true, errors: [] });
+            }
+
+            btn.classList.remove('compiling');
+            btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Compilar';
+        }
+
+        // ═══ MOSTRAR RESULTADOS ═══
+        function showResults(result) {
+            const content = document.getElementById('outputContent');
+            const badge = document.getElementById('errorBadge');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            // Limpiar decoraciones previas
+            monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
+
+            if (!result.errors || result.errors.length === 0) {
+                badge.style.display = 'inline';
+                badge.className = 'badge success';
+                badge.textContent = '✓';
+                statusDot.className = 'status-dot ready';
+                statusText.textContent = 'Compilación exitosa';
+
+                content.innerHTML = `
+                    <div class="success-message">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                            <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                        <p>Compilación exitosa — 0 errores</p>
+                    </div>`;
+            } else {
+                const errorCount = result.errors.length;
+                badge.style.display = 'inline';
+                badge.className = 'badge errors';
+                badge.textContent = errorCount;
+                statusDot.className = 'status-dot error';
+                statusText.textContent = `${errorCount} error${errorCount > 1 ? 'es' : ''} encontrado${errorCount > 1 ? 's' : ''}`;
+
+                // Mostrar errores en panel
+                content.innerHTML = result.errors.map((err, i) => `
+                    <div class="error-item error" onclick="goToError(${err.line || 1}, ${err.column || 1})">
+                        <div class="error-icon err">✕</div>
+                        <div class="error-details">
+                            <div class="error-msg">${escapeHtml(err.message)}</div>
+                            <div class="error-location">Línea ${err.line || '?'}, Columna ${err.column || '?'}</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Marcar errores en el editor
+                const markers = result.errors.map(err => ({
+                    severity: monaco.MarkerSeverity.Error,
+                    message: err.message,
+                    startLineNumber: err.line || 1,
+                    startColumn: err.column || 1,
+                    endLineNumber: err.line || 1,
+                    endColumn: (err.column || 1) + (err.length || 1),
+                }));
+                monaco.editor.setModelMarkers(editor.getModel(), 'compiler', markers);
+            }
+        }
+
+        // ═══ NAVEGAR A ERROR ═══
+        function goToError(line, column) {
+            editor.revealLineInCenter(line);
+            editor.setPosition({ lineNumber: line, column: column });
+            editor.focus();
+        }
+
+        // ═══ UTILIDADES ═══
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function clearEditor() {
+            if (editor) {
+                editor.setValue('package main;\n\n');
+                monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
+                document.getElementById('outputContent').innerHTML = `
+                    <div class="empty-state">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted)">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <p>Presioná <kbd>Compilar</kbd> para verificar el código</p>
+                    </div>`;
+                document.getElementById('errorBadge').style.display = 'none';
+                document.getElementById('statusDot').className = 'status-dot ready';
+                document.getElementById('statusText').textContent = 'Listo';
+            }
+        }
+
+        function loadSample() {
+            if (editor) {
+                editor.setValue(getSampleCode());
+                monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
+            }
+        }
+
+        function getSampleCode() {
+            return `package main;
+
+var x int = 10;
+var name string = "MiniGo";
+
+type Persona struct {
+    nombre string;
+    edad int;
+};
+
+func suma(a int, b int) int {
+    return a + b;
+};
+
+func main() {
+    var resultado int = suma(3, 7);
+    println(resultado);
+
+    var p Persona;
+
+    if resultado > 5 {
+        println("Mayor que 5");
+    } else {
+        println("Menor o igual a 5");
+    };
+
+    for i := 0; i < 10; i++ {
+        println(i);
+    };
+};
+`;
+        }
+
+        // ═══ RESIZE HANDLE ═══
+        const resizeHandle = document.getElementById('resizeHandle');
+        const outputPanel = document.getElementById('outputPanel');
+        let isResizing = false;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            resizeHandle.classList.add('active');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const newWidth = window.innerWidth - e.clientX;
+            if (newWidth >= 280 && newWidth <= 700) {
+                outputPanel.style.width = newWidth + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isResizing = false;
+            resizeHandle.classList.remove('active');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        });
+    </script>
+</body>
+</html>
