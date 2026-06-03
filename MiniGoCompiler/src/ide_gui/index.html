@@ -185,6 +185,11 @@
             background: var(--accent-go);
         }
 
+        /* Punto naranja cuando hay cambios sin compilar */
+        .editor-tab .dot.dirty {
+            background: var(--accent-orange);
+        }
+
         #editor-container {
             flex: 1;
             overflow: hidden;
@@ -248,18 +253,9 @@
             padding: 12px;
         }
 
-        .output-content::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .output-content::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .output-content::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 3px;
-        }
+        .output-content::-webkit-scrollbar { width: 6px; }
+        .output-content::-webkit-scrollbar-track { background: transparent; }
+        .output-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
         /* ═══ ERROR ITEMS ═══ */
         .error-item {
@@ -274,17 +270,9 @@
             margin-bottom: 4px;
         }
 
-        .error-item:hover {
-            background: var(--bg-hover);
-        }
-
-        .error-item.error {
-            border-left-color: var(--accent-red);
-        }
-
-        .error-item.warning {
-            border-left-color: var(--accent-yellow);
-        }
+        .error-item:hover { background: var(--bg-hover); }
+        .error-item.error { border-left-color: var(--accent-red); }
+        .error-item.warning { border-left-color: var(--accent-yellow); }
 
         .error-icon {
             width: 18px;
@@ -304,10 +292,7 @@
             color: var(--accent-red);
         }
 
-        .error-details {
-            flex: 1;
-            min-width: 0;
-        }
+        .error-details { flex: 1; min-width: 0; }
 
         .error-msg {
             font-size: 12px;
@@ -334,11 +319,7 @@
             color: var(--accent-green);
         }
 
-        .success-message svg {
-            width: 48px;
-            height: 48px;
-            opacity: 0.7;
-        }
+        .success-message svg { width: 48px; height: 48px; opacity: 0.7; }
 
         .success-message p {
             font-family: 'JetBrains Mono', monospace;
@@ -356,9 +337,7 @@
             color: var(--text-muted);
         }
 
-        .empty-state p {
-            font-size: 12px;
-        }
+        .empty-state p { font-size: 12px; }
 
         .empty-state kbd {
             font-family: 'JetBrains Mono', monospace;
@@ -392,11 +371,7 @@
             gap: 16px;
         }
 
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+        .status-indicator { display: flex; align-items: center; gap: 5px; }
 
         .status-dot {
             width: 7px;
@@ -405,13 +380,13 @@
             background: var(--text-muted);
         }
 
-        .status-dot.ready { background: var(--accent-green); }
-        .status-dot.error { background: var(--accent-red); }
-        .status-dot.compiling { background: var(--accent-orange); animation: pulse 1s infinite; }
+        .status-dot.ready    { background: var(--accent-green); }
+        .status-dot.error    { background: var(--accent-red); }
+        .status-dot.checking { background: var(--accent-orange); animation: pulse 1s infinite; }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+            50%       { opacity: 0.4; }
         }
 
         /* ═══ RESIZE HANDLE ═══ */
@@ -424,9 +399,7 @@
         }
 
         .resize-handle:hover,
-        .resize-handle.active {
-            background: var(--accent-go);
-        }
+        .resize-handle.active { background: var(--accent-go); }
     </style>
 </head>
 <body>
@@ -462,7 +435,7 @@
         <div class="editor-panel">
             <div class="editor-tab-bar">
                 <div class="editor-tab">
-                    <span class="dot"></span>
+                    <span class="dot" id="tabDot"></span>
                     main.go
                 </div>
             </div>
@@ -483,7 +456,7 @@
                         <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>
                     <p>Presioná <kbd>Compilar</kbd> para verificar el código</p>
-                    <p style="font-size:11px; color: var(--text-muted)">Ctrl+Enter</p>
+                    <p style="font-size:11px; color: var(--text-muted)">Ctrl+Enter o se verifica automáticamente al escribir</p>
                 </div>
             </div>
         </div>
@@ -508,6 +481,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     <script>
         let editor;
+
+        // ═══ Temporizador para compilación automática ═══
+        // Se dispara 700ms después de que el usuario deja de escribir
+        let autoCompileTimer = null;
+        const AUTO_COMPILE_DELAY = 700;
 
         // ═══ CONFIGURAR MONACO ═══
         require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
@@ -573,32 +551,32 @@
                 base: 'vs-dark',
                 inherit: true,
                 rules: [
-                    { token: 'keyword', foreground: 'c792ea', fontStyle: 'bold' },
-                    { token: 'type', foreground: '00add8' },
-                    { token: 'string', foreground: 'c3e88d' },
-                    { token: 'string.char', foreground: 'f78c6c' },
-                    { token: 'number', foreground: 'f78c6c' },
-                    { token: 'number.float', foreground: 'f78c6c' },
-                    { token: 'number.hex', foreground: 'f78c6c' },
+                    { token: 'keyword',       foreground: 'c792ea', fontStyle: 'bold' },
+                    { token: 'type',          foreground: '00add8' },
+                    { token: 'string',        foreground: 'c3e88d' },
+                    { token: 'string.char',   foreground: 'f78c6c' },
+                    { token: 'number',        foreground: 'f78c6c' },
+                    { token: 'number.float',  foreground: 'f78c6c' },
+                    { token: 'number.hex',    foreground: 'f78c6c' },
                     { token: 'number.binary', foreground: 'f78c6c' },
-                    { token: 'number.octal', foreground: 'f78c6c' },
-                    { token: 'comment', foreground: '546e7a', fontStyle: 'italic' },
-                    { token: 'operator', foreground: '89ddff' },
-                    { token: 'delimiter', foreground: '89ddff' },
-                    { token: 'identifier', foreground: 'c8d0dc' },
+                    { token: 'number.octal',  foreground: 'f78c6c' },
+                    { token: 'comment',       foreground: '546e7a', fontStyle: 'italic' },
+                    { token: 'operator',      foreground: '89ddff' },
+                    { token: 'delimiter',     foreground: '89ddff' },
+                    { token: 'identifier',    foreground: 'c8d0dc' },
                 ],
                 colors: {
-                    'editor.background': '#0f1319',
-                    'editor.foreground': '#c8d0dc',
-                    'editor.lineHighlightBackground': '#151a2288',
-                    'editor.selectionBackground': '#3d4f6f55',
-                    'editorCursor.foreground': '#00add8',
-                    'editorLineNumber.foreground': '#3e4957',
-                    'editorLineNumber.activeForeground': '#6b7a8d',
-                    'editor.selectionHighlightBackground': '#3d4f6f33',
-                    'editorIndentGuide.background': '#1e2530',
-                    'editorGutter.background': '#0f1319',
-                    'editorOverviewRuler.border': '#1e2530',
+                    'editor.background':                  '#0f1319',
+                    'editor.foreground':                  '#c8d0dc',
+                    'editor.lineHighlightBackground':     '#151a2288',
+                    'editor.selectionBackground':         '#3d4f6f55',
+                    'editorCursor.foreground':            '#00add8',
+                    'editorLineNumber.foreground':        '#3e4957',
+                    'editorLineNumber.activeForeground':  '#6b7a8d',
+                    'editor.selectionHighlightBackground':'#3d4f6f33',
+                    'editorIndentGuide.background':       '#1e2530',
+                    'editorGutter.background':            '#0f1319',
+                    'editorOverviewRuler.border':         '#1e2530',
                 }
             });
 
@@ -623,31 +601,50 @@
                 tabSize: 4,
             });
 
-            // Actualizar posición del cursor
+            // ── Actualizar posición del cursor ──
             editor.onDidChangeCursorPosition(function (e) {
                 document.getElementById('cursorPos').textContent =
                     `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
             });
 
-            // Ctrl+Enter para compilar
+            // ── Compilación automática al escribir ──
+            // Cada vez que el contenido cambia, se reinicia el temporizador.
+            // Si el usuario para de escribir 700 ms, se lanza la compilación.
+            editor.onDidChangeModelContent(function () {
+                // Marcar el tab como "con cambios pendientes"
+                document.getElementById('tabDot').classList.add('dirty');
+
+                // Cancelar el temporizador anterior y arrancar uno nuevo
+                clearTimeout(autoCompileTimer);
+                autoCompileTimer = setTimeout(function () {
+                    compile();
+                }, AUTO_COMPILE_DELAY);
+            });
+
+            // ── Ctrl+Enter compila de inmediato ──
             editor.addAction({
                 id: 'compile',
                 label: 'Compilar',
                 keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
-                run: function () { compile(); }
+                run: function () {
+                    clearTimeout(autoCompileTimer);
+                    compile();
+                }
             });
         });
 
         // ═══ COMPILAR ═══
         async function compile() {
-            const btn = document.getElementById('compileBtn');
+            if (!editor) return;
+
+            const btn       = document.getElementById('compileBtn');
             const statusDot = document.getElementById('statusDot');
-            const statusText = document.getElementById('statusText');
+            const statusText= document.getElementById('statusText');
 
             btn.classList.add('compiling');
             btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Compilando...';
-            statusDot.className = 'status-dot compiling';
-            statusText.textContent = 'Compilando...';
+            statusDot.className  = 'status-dot checking';
+            statusText.textContent = 'Verificando...';
 
             const code = editor.getValue();
 
@@ -655,33 +652,42 @@
                 const response = await fetch('/compile', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: code })
+                    body: JSON.stringify({ code })
                 });
                 const result = await response.json();
                 showResults(result);
             } catch (err) {
-                // Si no hay backend, simular respuesta para demo
-                showResults({ success: true, errors: [] });
+                // El servidor no está disponible
+                showResults({
+                    success: false,
+                    errors: [{
+                        message: 'No se puede conectar con el servidor del compilador. ¿Está corriendo?',
+                        line: 1, column: 1, length: 1
+                    }]
+                });
             }
 
             btn.classList.remove('compiling');
             btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Compilar';
+
+            // Quitar la marca de "cambios pendientes" del tab
+            document.getElementById('tabDot').classList.remove('dirty');
         }
 
         // ═══ MOSTRAR RESULTADOS ═══
         function showResults(result) {
-            const content = document.getElementById('outputContent');
-            const badge = document.getElementById('errorBadge');
+            const content   = document.getElementById('outputContent');
+            const badge     = document.getElementById('errorBadge');
             const statusDot = document.getElementById('statusDot');
-            const statusText = document.getElementById('statusText');
+            const statusText= document.getElementById('statusText');
 
-            // Limpiar decoraciones previas
+            // Limpiar marcadores previos en el editor
             monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
 
             if (!result.errors || result.errors.length === 0) {
                 badge.style.display = 'inline';
-                badge.className = 'badge success';
-                badge.textContent = '✓';
+                badge.className     = 'badge success';
+                badge.textContent   = '✓';
                 statusDot.className = 'status-dot ready';
                 statusText.textContent = 'Compilación exitosa';
 
@@ -695,14 +701,14 @@
                     </div>`;
             } else {
                 const errorCount = result.errors.length;
-                badge.style.display = 'inline';
-                badge.className = 'badge errors';
-                badge.textContent = errorCount;
-                statusDot.className = 'status-dot error';
+                badge.style.display  = 'inline';
+                badge.className      = 'badge errors';
+                badge.textContent    = errorCount;
+                statusDot.className  = 'status-dot error';
                 statusText.textContent = `${errorCount} error${errorCount > 1 ? 'es' : ''} encontrado${errorCount > 1 ? 's' : ''}`;
 
-                // Mostrar errores en panel
-                content.innerHTML = result.errors.map((err, i) => `
+                // Lista de errores en el panel derecho
+                content.innerHTML = result.errors.map(err => `
                     <div class="error-item error" onclick="goToError(${err.line || 1}, ${err.column || 1})">
                         <div class="error-icon err">✕</div>
                         <div class="error-details">
@@ -712,14 +718,14 @@
                     </div>
                 `).join('');
 
-                // Marcar errores en el editor
+                // Marcadores rojos dentro del editor
                 const markers = result.errors.map(err => ({
-                    severity: monaco.MarkerSeverity.Error,
-                    message: err.message,
-                    startLineNumber: err.line || 1,
-                    startColumn: err.column || 1,
-                    endLineNumber: err.line || 1,
-                    endColumn: (err.column || 1) + (err.length || 1),
+                    severity:        monaco.MarkerSeverity.Error,
+                    message:         err.message,
+                    startLineNumber: err.line   || 1,
+                    startColumn:     err.column || 1,
+                    endLineNumber:   err.line   || 1,
+                    endColumn:       (err.column || 1) + (err.length || 1),
                 }));
                 monaco.editor.setModelMarkers(editor.getModel(), 'compiler', markers);
             }
@@ -740,27 +746,28 @@
         }
 
         function clearEditor() {
-            if (editor) {
-                editor.setValue('package main;\n\n');
-                monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
-                document.getElementById('outputContent').innerHTML = `
-                    <div class="empty-state">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted)">
-                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
-                        <p>Presioná <kbd>Compilar</kbd> para verificar el código</p>
-                    </div>`;
-                document.getElementById('errorBadge').style.display = 'none';
-                document.getElementById('statusDot').className = 'status-dot ready';
-                document.getElementById('statusText').textContent = 'Listo';
-            }
+            if (!editor) return;
+            clearTimeout(autoCompileTimer);
+            editor.setValue('package main;\n\n');
+            monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
+            document.getElementById('outputContent').innerHTML = `
+                <div class="empty-state">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted)">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <p>Presioná <kbd>Compilar</kbd> para verificar el código</p>
+                </div>`;
+            document.getElementById('errorBadge').style.display = 'none';
+            document.getElementById('statusDot').className      = 'status-dot ready';
+            document.getElementById('statusText').textContent   = 'Listo';
+            document.getElementById('tabDot').classList.remove('dirty');
         }
 
         function loadSample() {
-            if (editor) {
-                editor.setValue(getSampleCode());
-                monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
-            }
+            if (!editor) return;
+            clearTimeout(autoCompileTimer);
+            editor.setValue(getSampleCode());
+            monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
         }
 
         function getSampleCode() {
@@ -799,28 +806,27 @@ func main() {
 
         // ═══ RESIZE HANDLE ═══
         const resizeHandle = document.getElementById('resizeHandle');
-        const outputPanel = document.getElementById('outputPanel');
+        const outputPanel  = document.getElementById('outputPanel');
         let isResizing = false;
 
-        resizeHandle.addEventListener('mousedown', (e) => {
+        resizeHandle.addEventListener('mousedown', () => {
             isResizing = true;
             resizeHandle.classList.add('active');
-            document.body.style.cursor = 'col-resize';
+            document.body.style.cursor     = 'col-resize';
             document.body.style.userSelect = 'none';
         });
 
         document.addEventListener('mousemove', (e) => {
             if (!isResizing) return;
             const newWidth = window.innerWidth - e.clientX;
-            if (newWidth >= 280 && newWidth <= 700) {
+            if (newWidth >= 280 && newWidth <= 700)
                 outputPanel.style.width = newWidth + 'px';
-            }
         });
 
         document.addEventListener('mouseup', () => {
             isResizing = false;
             resizeHandle.classList.remove('active');
-            document.body.style.cursor = '';
+            document.body.style.cursor     = '';
             document.body.style.userSelect = '';
         });
     </script>
