@@ -86,8 +86,10 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     /// <param name="msg">Human-readable description of the error.</param>
     /// <param name="offendingToken">Token that triggered the error.</param>
-    private void syntaxError(string msg, IToken offendingToken) {
-        string error = "TYPE ERROR: " + msg + ": (" + offendingToken.Text + ") " + " in [line " + offendingToken.Line + ": " + "Column " + offendingToken.Column + "]";
+    private void syntaxError(string msg, IToken offendingToken)
+    {
+        string error = "TYPE ERROR: " + msg + ": (" + offendingToken.Text + ") " + " in [line " + offendingToken.Line +
+                       ": " + "Column " + offendingToken.Column + "]";
         this.errorList.AddFirst(error);
     }
 
@@ -99,10 +101,12 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// <param name="offendingToken">Token where the mismatch was detected.</param>
     /// <param name="type1">Type encountered on one side of the operation.</param>
     /// <param name="type2">Type encountered on the other side of the operation.</param>
-    private void syntaxError(string msg, IToken offendingToken, SymbolsTable.TypeInfo type1, SymbolsTable.TypeInfo  type2) {
+    private void syntaxError(string msg, IToken offendingToken, SymbolsTable.TypeInfo type1,
+        SymbolsTable.TypeInfo type2)
+    {
         string tipo1 = type1.Category == "simple" ? GetSimpleTypeName(type1.SimpleType) : type1.Category;
         string tipo2 = type2.Category == "simple" ? GetSimpleTypeName(type2.SimpleType) : type2.Category;
-    
+
         string error = "TYPE ERROR: " + msg + " " + tipo1 + " and " + tipo2 + ": (" + offendingToken.Text + ")" +
                        " in [line " + offendingToken.Line + ": Column " + offendingToken.Column + "]";
         this.errorList.AddFirst(error);
@@ -143,7 +147,6 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         Visit(context.topDeclarationList());
         symbolsTable.CloseScope();
         return null;
-
     }
 
     /// <summary>
@@ -156,6 +159,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             Visit(child);
         }
+
         return null;
     }
 
@@ -174,7 +178,6 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
             if (context.singleVarDecl() != null)
             {
                 Visit(context.singleVarDecl());
-                
             }
 
             if (context.innerVarDecls() != null)
@@ -184,10 +187,9 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         }
         catch (TypeErrorException e)
         {
-            
         }
+
         return null;
-        
     }
 
     /// <summary>
@@ -199,9 +201,9 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             Visit(svd);
         }
+
         return null;
     }
-
 
 
     /// <summary>
@@ -243,17 +245,21 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
                     {
                         syntaxError("Invalid types in assign ", token, declaredType, exprType);
                     }
+
                     symbolsTable.InsertVariableLevel(token, declaredType,
                         symbolsTable.GetActualLevel(), context);
                 }
             }
+
             context.decl = context;
         }
-        catch (TypeErrorException) { }
+        catch (TypeErrorException)
+        {
+        }
 
         return null;
     }
-        
+
 
     /// <summary>
     /// Handles a type-inferred declaration of the form <c>var x = expr</c>
@@ -295,7 +301,10 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
                 }
             }
         }
-        catch (TypeErrorException) { }
+        catch (TypeErrorException)
+        {
+        }
+
         context.decl = context;
         return null;
     }
@@ -316,24 +325,30 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitSingleVarDeclNoExps(MiniGoCompilerParser.SingleVarDeclNoExpsContext context)
     {
-        try {
-        SymbolsTable.TypeInfo declaredType = (SymbolsTable.TypeInfo)Visit(context.declType());
-        foreach (var id in context.identifierList().IDENTIFIER())
+        try
         {
-            IToken token = id.Symbol;
-            SymbolsTable.Ident ident = symbolsTable.SearchActualLevel(token.Text);
-            if (ident != null)
+            SymbolsTable.TypeInfo declaredType = (SymbolsTable.TypeInfo)Visit(context.declType());
+            foreach (var id in context.identifierList().IDENTIFIER())
             {
+                IToken token = id.Symbol;
+                SymbolsTable.Ident ident = symbolsTable.SearchActualLevel(token.Text);
+                if (ident != null)
+                {
                     syntaxError("Variable already declared", token);
+                }
+                else
+                {
+                    symbolsTable.InsertVariableLevel(token, declaredType, symbolsTable.GetActualLevel(), context);
+                }
             }
-            else
-            {
-                symbolsTable.InsertVariableLevel(token, declaredType, symbolsTable.GetActualLevel(),context);
-            }
+
+            context.decl = context;
         }
-        context.decl = context;
-        } catch (TypeErrorException e){}
-        return null; 
+        catch (TypeErrorException e)
+        {
+        }
+
+        return null;
     }
 
     // -------------------------------------------------------------------------
@@ -346,16 +361,22 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitTypeDecl(MiniGoCompilerParser.TypeDeclContext context)
     {
-        try {
-        if (context.singleTypeDecl() != null)
+        try
         {
-            Visit(context.singleTypeDecl());
+            if (context.singleTypeDecl() != null)
+            {
+                Visit(context.singleTypeDecl());
+            }
+
+            if (context.innerTypeDecls() != null)
+            {
+                Visit(context.innerTypeDecls());
+            }
         }
-        if (context.innerTypeDecls() != null)
+        catch (TypeErrorException e)
         {
-            Visit(context.innerTypeDecls());
         }
-        } catch (TypeErrorException e){}
+
         return null;
     }
 
@@ -370,7 +391,11 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
             {
                 Visit(std);
             }
-        } catch  (TypeErrorException e){}
+        }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -383,7 +408,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     {
         try
         {
-            SymbolsTable.TypeInfo declaredType = (SymbolsTable.TypeInfo) Visit(context.declType());
+            SymbolsTable.TypeInfo declaredType = (SymbolsTable.TypeInfo)Visit(context.declType());
             SymbolsTable.Ident ident = symbolsTable.SearchActualLevel(context.IDENTIFIER().GetText());
             if (ident != null)
             {
@@ -391,9 +416,13 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
             }
             else
             {
-                symbolsTable.InsertTypeLevel(context.IDENTIFIER().Symbol, declaredType,  symbolsTable.GetActualLevel(), context);
+                symbolsTable.InsertTypeLevel(context.IDENTIFIER().Symbol, declaredType, symbolsTable.GetActualLevel(),
+                    context);
             }
-        } catch (TypeErrorException e){}
+        }
+        catch (TypeErrorException e)
+        {
+        }
 
         return null;
     }
@@ -416,7 +445,8 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </list>
     /// </summary>
     public override object VisitFuncDecl(MiniGoCompilerParser.FuncDeclContext context)
-    {try
+    {
+        try
         {
             var front = context.funcFrontDecl();
             SymbolsTable.TypeInfo returnType = null;
@@ -427,7 +457,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
             if (ident != null)
             {
                 syntaxError("Function already declared", front.IDENTIFIER().Symbol);
-                return null;   // <- evita insertar duplicado
+                return null; // <- evita insertar duplicado
             }
 
             LinkedList<SymbolsTable.TypeInfo> paramTypes = new LinkedList<SymbolsTable.TypeInfo>();
@@ -447,17 +477,21 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
             {
                 Visit(front.funcArgDecls());
             }
+
             returnTypeStack.Push(returnType);
             Visit(context.block());
             if (returnType != null && !GuaranteesReturn(context.block().statementList()))
             {
                 syntaxError("Not all paths return a value", front.IDENTIFIER().Symbol);
             }
+
             returnTypeStack.Pop();
             symbolsTable.CloseScope();
             context.decl = context;
         }
-        catch (TypeErrorException) { }
+        catch (TypeErrorException)
+        {
+        }
 
         return null;
     }
@@ -481,6 +515,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             Visit(fad);
         }
+
         return null;
     }
 
@@ -494,7 +529,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitGroupDeclType(MiniGoCompilerParser.GroupDeclTypeContext context)
     {
-        SymbolsTable.TypeInfo declareType =  (SymbolsTable.TypeInfo) Visit(context.declType());
+        SymbolsTable.TypeInfo declareType = (SymbolsTable.TypeInfo)Visit(context.declType());
         return declareType;
     }
 
@@ -511,22 +546,24 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
 
         switch (typeName)
         {
-            case "int":     return new SymbolsTable.TypeInfo("simple", 0, 0, null, null);
+            case "int": return new SymbolsTable.TypeInfo("simple", 0, 0, null, null);
             case "float64": return new SymbolsTable.TypeInfo("simple", 1, 0, null, null);
-            case "string":  return new SymbolsTable.TypeInfo("simple", 2, 0, null, null);
-            case "rune":    return new SymbolsTable.TypeInfo("simple", 3, 0, null, null);
-            case "bool":    return new SymbolsTable.TypeInfo("simple", 4, 0, null, null);
+            case "string": return new SymbolsTable.TypeInfo("simple", 2, 0, null, null);
+            case "rune": return new SymbolsTable.TypeInfo("simple", 3, 0, null, null);
+            case "bool": return new SymbolsTable.TypeInfo("simple", 4, 0, null, null);
             default:
                 SymbolsTable.Ident ident = symbolsTable.Search(typeName);
                 if (ident is SymbolsTable.TypeIdent typeIdent)
                 {
                     return typeIdent.Type;
                 }
+
                 if (ident != null)
                 {
                     syntaxError("Identifier is not a type", context.identifier().IDENTIFIER().Symbol);
                     return null;
                 }
+
                 syntaxError("Undefined type", context.identifier().IDENTIFIER().Symbol);
                 return null;
         }
@@ -538,8 +575,8 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitSliceTypeDecl(MiniGoCompilerParser.SliceTypeDeclContext context)
     {
-        SymbolsTable.TypeInfo declareType = (SymbolsTable.TypeInfo) Visit(context.sliceDeclType().declType());
-        SymbolsTable.TypeInfo slice =new SymbolsTable.TypeInfo("slice", -1, -1, declareType, null);
+        SymbolsTable.TypeInfo declareType = (SymbolsTable.TypeInfo)Visit(context.sliceDeclType().declType());
+        SymbolsTable.TypeInfo slice = new SymbolsTable.TypeInfo("slice", -1, -1, declareType, null);
         return slice;
     }
 
@@ -549,9 +586,9 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitArrayTypeDecl(MiniGoCompilerParser.ArrayTypeDeclContext context)
     {
-        SymbolsTable.TypeInfo declareType = (SymbolsTable.TypeInfo) Visit(context.arrayDeclType().declType());
+        SymbolsTable.TypeInfo declareType = (SymbolsTable.TypeInfo)Visit(context.arrayDeclType().declType());
         int size = int.Parse(context.arrayDeclType().INTLITERAL().GetText());
-        SymbolsTable.TypeInfo array =new SymbolsTable.TypeInfo("array", -1, size , declareType, null);
+        SymbolsTable.TypeInfo array = new SymbolsTable.TypeInfo("array", -1, size, declareType, null);
         return array;
     }
 
@@ -562,10 +599,10 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     public override object VisitStructTypeDecl(MiniGoCompilerParser.StructTypeDeclContext context)
     {
         Dictionary<string, SymbolsTable.TypeInfo> fields = new Dictionary<string, SymbolsTable.TypeInfo>();
-    
+
         if (context.structDeclType().structMemDecls() != null)
             fields = (Dictionary<string, SymbolsTable.TypeInfo>)Visit(context.structDeclType().structMemDecls());
-    
+
         return new SymbolsTable.TypeInfo("struct", -1, -1, null, fields);
     }
 
@@ -604,7 +641,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     public override object VisitStructMemDecls(MiniGoCompilerParser.StructMemDeclsContext context)
     {
         Dictionary<string, SymbolsTable.TypeInfo> fields = new Dictionary<string, SymbolsTable.TypeInfo>();
-    
+
         foreach (var member in context.singleVarDeclNoExps())
         {
             SymbolsTable.TypeInfo memberType = (SymbolsTable.TypeInfo)Visit(member.declType());
@@ -613,7 +650,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
                 fields[id.GetText()] = memberType;
             }
         }
-    
+
         return fields;
     }
 
@@ -639,7 +676,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
             SymbolsTable.TypeInfo t = (SymbolsTable.TypeInfo)Visit(expr);
             types.AddLast(t);
         }
-        
+
         return types;
     }
 
@@ -667,6 +704,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             syntaxError("Cannot apply '-' to non-numeric type", context.SUB().Symbol);
         }
+
         return type;
     }
 
@@ -677,7 +715,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitAddExpr(MiniGoCompilerParser.AddExprContext context)
     {
-        SymbolsTable.TypeInfo left  = (SymbolsTable.TypeInfo)Visit(context.expression(0));
+        SymbolsTable.TypeInfo left = (SymbolsTable.TypeInfo)Visit(context.expression(0));
         SymbolsTable.TypeInfo right = (SymbolsTable.TypeInfo)Visit(context.expression(1));
         IToken op = (context.ADD() ?? context.SUB() ?? context.OR() ?? context.HAT()).Symbol;
 
@@ -691,6 +729,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             syntaxError("Bitwise operator requires integer type", op);
         }
+
         return left;
     }
 
@@ -702,7 +741,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitMulExpr(MiniGoCompilerParser.MulExprContext context)
     {
-        SymbolsTable.TypeInfo left  = (SymbolsTable.TypeInfo)Visit(context.expression(0));
+        SymbolsTable.TypeInfo left = (SymbolsTable.TypeInfo)Visit(context.expression(0));
         SymbolsTable.TypeInfo right = (SymbolsTable.TypeInfo)Visit(context.expression(1));
         IToken op = (context.MUL() ?? context.DIV() ?? context.MOD() ?? context.DLESS()
             ?? context.DMORE() ?? context.AND() ?? context.ANDHAT()).Symbol;
@@ -724,8 +763,8 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             syntaxError("Operation requires numeric type", op);
         }
+
         return left;
-        
     }
 
     /// <summary>
@@ -734,7 +773,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitOrExpr(MiniGoCompilerParser.OrExprContext context)
     {
-        SymbolsTable.TypeInfo left  = (SymbolsTable.TypeInfo)Visit(context.expression(0));
+        SymbolsTable.TypeInfo left = (SymbolsTable.TypeInfo)Visit(context.expression(0));
         SymbolsTable.TypeInfo right = (SymbolsTable.TypeInfo)Visit(context.expression(1));
         IToken op = context.DOR().Symbol;
 
@@ -748,6 +787,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             syntaxError("Logical operator || requires boolean type", op);
         }
+
         return new SymbolsTable.TypeInfo("simple", 4, 0, null, null);
     }
 
@@ -762,6 +802,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             syntaxError("Cannot apply '^' to non-integer type", context.HAT().Symbol);
         }
+
         return type;
     }
 
@@ -777,6 +818,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             syntaxError("Cannot apply '+' to non-numeric type", context.ADD().Symbol);
         }
+
         return type;
     }
 
@@ -788,7 +830,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitRelExpr(MiniGoCompilerParser.RelExprContext context)
     {
-        SymbolsTable.TypeInfo left  = (SymbolsTable.TypeInfo)Visit(context.expression(0));
+        SymbolsTable.TypeInfo left = (SymbolsTable.TypeInfo)Visit(context.expression(0));
         SymbolsTable.TypeInfo right = (SymbolsTable.TypeInfo)Visit(context.expression(1));
         IToken op = (context.EQEQ() ?? context.NOTEQ() ?? context.LESS() ?? context.LESSEQ()
             ?? context.MORET() ?? context.MOREEQ()).Symbol;
@@ -812,8 +854,6 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         }
 
         return new SymbolsTable.TypeInfo("simple", 4, 0, null, null);
-        
-        
     }
 
     /// <summary>
@@ -827,6 +867,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             syntaxError("Cannot apply '!' to non-bool type", context.NOT().Symbol);
         }
+
         return type;
     }
 
@@ -836,7 +877,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitAndExpr(MiniGoCompilerParser.AndExprContext context)
     {
-        SymbolsTable.TypeInfo left  = (SymbolsTable.TypeInfo)Visit(context.expression(0));
+        SymbolsTable.TypeInfo left = (SymbolsTable.TypeInfo)Visit(context.expression(0));
         SymbolsTable.TypeInfo right = (SymbolsTable.TypeInfo)Visit(context.expression(1));
         IToken op = context.DAND().Symbol;
 
@@ -850,6 +891,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             syntaxError("Logical operator && requires boolean type", op);
         }
+
         return new SymbolsTable.TypeInfo("simple", 4, 0, null, null);
     }
 
@@ -900,10 +942,11 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
             {
                 return new SymbolsTable.TypeInfo("simple", 3, 0, null, null); // string[i] retorna rune
             }
+
             syntaxError("Cannot index this type", context.index().RIGHTB().Symbol);
         }
+
         return null;
-        
     }
 
     /// <summary>
@@ -924,12 +967,14 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
                 context.selector().IDENTIFIER().Symbol);
             return null;
         }
+
         if (type.Fields == null || !type.Fields.ContainsKey(selector))
         {
             syntaxError("Selector '" + selector + "' does not exist in struct",
                 context.selector().IDENTIFIER().Symbol);
             return null;
         }
+
         return type.Fields[selector];
     }
 
@@ -952,7 +997,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         }
 
         IToken funcToken = idOp.identifier().IDENTIFIER().Symbol;
-        string funcName  = funcToken.Text;
+        string funcName = funcToken.Text;
 
         SymbolsTable.Ident ident = symbolsTable.Search(funcName);
         if (ident == null)
@@ -960,6 +1005,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
             syntaxError("Undefined function", funcToken);
             return null;
         }
+
         if (ident is not SymbolsTable.FunctionIdent func)
         {
             syntaxError("Cannot call a non-function", funcToken);
@@ -984,7 +1030,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             for (int i = 0; i < argumentList.Count; i++)
             {
-                var arg   = argumentList.ElementAt(i);
+                var arg = argumentList.ElementAt(i);
                 var param = func.Parameters.ElementAt(i);
                 if (arg != null && param != null &&
                     (arg.Category != param.Category || arg.SimpleType != param.SimpleType))
@@ -993,6 +1039,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
                 }
             }
         }
+
         return ident.Type;
     }
 
@@ -1092,19 +1139,21 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     public override object VisitAppendExpression(MiniGoCompilerParser.AppendExpressionContext context)
     {
         SymbolsTable.TypeInfo sliceType = (SymbolsTable.TypeInfo)Visit(context.expression()[0]);
-        SymbolsTable.TypeInfo elemType  = (SymbolsTable.TypeInfo)Visit(context.expression()[1]);
+        SymbolsTable.TypeInfo elemType = (SymbolsTable.TypeInfo)Visit(context.expression()[1]);
 
         if (sliceType != null && sliceType.Category != "slice")
         {
             syntaxError("First argument of append must be a slice", context.APPEND().Symbol);
             return sliceType;
         }
+
         if (sliceType != null && sliceType.InsideType != null && elemType != null &&
             (sliceType.InsideType.Category != elemType.Category ||
              sliceType.InsideType.SimpleType != elemType.SimpleType))
         {
             syntaxError("Incompatible type for append", context.APPEND().Symbol);
         }
+
         return sliceType;
     }
 
@@ -1120,6 +1169,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
         {
             syntaxError("Cannot apply length to a " + type.Category + " type", context.LEN().Symbol);
         }
+
         return new SymbolsTable.TypeInfo("simple", 0, 0, null, null);
     }
 
@@ -1129,12 +1179,12 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitCapExpression(MiniGoCompilerParser.CapExpressionContext context)
     {
-        
         SymbolsTable.TypeInfo type = (SymbolsTable.TypeInfo)Visit(context.expression());
         if (type != null && type.Category != "array" && type.Category != "slice")
         {
             syntaxError("Cannot apply cap to a " + type.Category + " type", context.CAP().Symbol);
         }
+
         return new SymbolsTable.TypeInfo("simple", 0, 0, null, null);
     }
 
@@ -1148,11 +1198,11 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitStatementList(MiniGoCompilerParser.StatementListContext context)
     {
-
         foreach (var stmt in context.statement())
         {
             Visit(stmt);
         }
+
         return null;
     }
 
@@ -1171,9 +1221,11 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitPrintStatement(MiniGoCompilerParser.PrintStatementContext context)
     {
-        if (context.expressionList() != null){
-        Visit(context.expressionList());
+        if (context.expressionList() != null)
+        {
+            Visit(context.expressionList());
         }
+
         return null;
     }
 
@@ -1183,9 +1235,11 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitPrintlnStatement(MiniGoCompilerParser.PrintlnStatementContext context)
     {
-        if (context.expressionList() != null){
+        if (context.expressionList() != null)
+        {
             Visit(context.expressionList());
         }
+
         return null;
     }
 
@@ -1203,97 +1257,99 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// unconditionally guarantees a return on every execution path.
     /// </summary>
     private bool GuaranteesReturn(MiniGoCompilerParser.StatementListContext ctx)
-{
-    if (ctx == null) return false;
-
-    foreach (var stmt in ctx.statement())
     {
-        if (StmtGuaranteesReturn(stmt)) return true;
-    }
-    return false;
-}
+        if (ctx == null) return false;
 
-/// <summary>
-/// Determines whether a single statement guarantees a return. Returns are
-/// trivially terminal; blocks, <c>if</c>, and <c>switch</c> statements
-/// delegate to their specialized analyzers.
-/// </summary>
-private bool StmtGuaranteesReturn(MiniGoCompilerParser.StatementContext stmt)
-{
-    if (stmt is MiniGoCompilerParser.ReturnStatementContext)
-        return true;
+        foreach (var stmt in ctx.statement())
+        {
+            if (StmtGuaranteesReturn(stmt)) return true;
+        }
 
-    if (stmt is MiniGoCompilerParser.BlockStatementContext blockStmt)
-        return GuaranteesReturn(blockStmt.block().statementList());
-
-    if (stmt is MiniGoCompilerParser.IfStmtStatementContext ifStmt)
-        return IfGuaranteesReturn(ifStmt.ifStatement());
-
-    if (stmt is MiniGoCompilerParser.SwitchStatementContext switchStmt)
-        return SwitchGuaranteesReturn(switchStmt.switchStmt());
-
-    return false;
-}
-
-/// <summary>
-/// Determines whether an <c>if</c>/<c>else</c> chain guarantees a return on
-/// every branch. An <c>if</c> without an <c>else</c> can never guarantee a
-/// return because the implicit fall-through path bypasses the body.
-/// </summary>
-private bool IfGuaranteesReturn(MiniGoCompilerParser.IfStatementContext ctx)
-{
-    if (ctx is MiniGoCompilerParser.ElseBlockIfStatementContext elseBlock)
-        return GuaranteesReturn(elseBlock.block(0).statementList())
-            && GuaranteesReturn(elseBlock.block(1).statementList());
-
-    if (ctx is MiniGoCompilerParser.ElseIfStatementContext elseIf)
-        return GuaranteesReturn(elseIf.block().statementList())
-            && IfGuaranteesReturn(elseIf.ifStatement());
-
-    if (ctx is MiniGoCompilerParser.SimpleElseBlockIfStatementContext simpleElse)
-        return GuaranteesReturn(simpleElse.block(0).statementList())
-            && GuaranteesReturn(simpleElse.block(1).statementList());
-
-    if (ctx is MiniGoCompilerParser.SimpleElseIfStatementContext simpleElseIf)
-        return GuaranteesReturn(simpleElseIf.block().statementList())
-            && IfGuaranteesReturn(simpleElseIf.ifStatement());
-    
-    return false;
-}
-
-/// <summary>
-/// Determines whether a <c>switch</c> statement guarantees a return on every
-/// path. Every case clause (including <c>default</c>) must guarantee a
-/// return, and a <c>default</c> branch must exist; otherwise some
-/// unmatched switch value could fall through without returning.
-/// </summary>
-private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
-{
-    MiniGoCompilerParser.ExpressionCaseClauseListContext caseList = null;
-
-    if (ctx is MiniGoCompilerParser.ExpressionSwitchContext es)
-        caseList = es.expressionCaseClauseList();
-    else if (ctx is MiniGoCompilerParser.SimpleExpressionSwitchContext ses)
-        caseList = ses.expressionCaseClauseList();
-    else if (ctx is MiniGoCompilerParser.SimpleSwitchContext ss)
-        caseList = ss.expressionCaseClauseList();
-    else if (ctx is MiniGoCompilerParser.EmptySwitchContext ems)
-        caseList = ems.expressionCaseClauseList();
-
-    if (caseList == null) return false;
-
-    bool hasDefault = false;
-    foreach (var clause in caseList.expressionCaseClause())
-    {
-        if (clause.expressionSwitchCase() is MiniGoCompilerParser.DefaultSwitchContext)
-            hasDefault = true;
-
-        if (!GuaranteesReturn(clause.statementList()))
-            return false;
+        return false;
     }
 
-    return hasDefault;
-}
+    /// <summary>
+    /// Determines whether a single statement guarantees a return. Returns are
+    /// trivially terminal; blocks, <c>if</c>, and <c>switch</c> statements
+    /// delegate to their specialized analyzers.
+    /// </summary>
+    private bool StmtGuaranteesReturn(MiniGoCompilerParser.StatementContext stmt)
+    {
+        if (stmt is MiniGoCompilerParser.ReturnStatementContext)
+            return true;
+
+        if (stmt is MiniGoCompilerParser.BlockStatementContext blockStmt)
+            return GuaranteesReturn(blockStmt.block().statementList());
+
+        if (stmt is MiniGoCompilerParser.IfStmtStatementContext ifStmt)
+            return IfGuaranteesReturn(ifStmt.ifStatement());
+
+        if (stmt is MiniGoCompilerParser.SwitchStatementContext switchStmt)
+            return SwitchGuaranteesReturn(switchStmt.switchStmt());
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether an <c>if</c>/<c>else</c> chain guarantees a return on
+    /// every branch. An <c>if</c> without an <c>else</c> can never guarantee a
+    /// return because the implicit fall-through path bypasses the body.
+    /// </summary>
+    private bool IfGuaranteesReturn(MiniGoCompilerParser.IfStatementContext ctx)
+    {
+        if (ctx is MiniGoCompilerParser.ElseBlockIfStatementContext elseBlock)
+            return GuaranteesReturn(elseBlock.block(0).statementList())
+                   && GuaranteesReturn(elseBlock.block(1).statementList());
+
+        if (ctx is MiniGoCompilerParser.ElseIfStatementContext elseIf)
+            return GuaranteesReturn(elseIf.block().statementList())
+                   && IfGuaranteesReturn(elseIf.ifStatement());
+
+        if (ctx is MiniGoCompilerParser.SimpleElseBlockIfStatementContext simpleElse)
+            return GuaranteesReturn(simpleElse.block(0).statementList())
+                   && GuaranteesReturn(simpleElse.block(1).statementList());
+
+        if (ctx is MiniGoCompilerParser.SimpleElseIfStatementContext simpleElseIf)
+            return GuaranteesReturn(simpleElseIf.block().statementList())
+                   && IfGuaranteesReturn(simpleElseIf.ifStatement());
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether a <c>switch</c> statement guarantees a return on every
+    /// path. Every case clause (including <c>default</c>) must guarantee a
+    /// return, and a <c>default</c> branch must exist; otherwise some
+    /// unmatched switch value could fall through without returning.
+    /// </summary>
+    private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
+    {
+        MiniGoCompilerParser.ExpressionCaseClauseListContext caseList = null;
+
+        if (ctx is MiniGoCompilerParser.ExpressionSwitchContext es)
+            caseList = es.expressionCaseClauseList();
+        else if (ctx is MiniGoCompilerParser.SimpleExpressionSwitchContext ses)
+            caseList = ses.expressionCaseClauseList();
+        else if (ctx is MiniGoCompilerParser.SimpleSwitchContext ss)
+            caseList = ss.expressionCaseClauseList();
+        else if (ctx is MiniGoCompilerParser.EmptySwitchContext ems)
+            caseList = ems.expressionCaseClauseList();
+
+        if (caseList == null) return false;
+
+        bool hasDefault = false;
+        foreach (var clause in caseList.expressionCaseClause())
+        {
+            if (clause.expressionSwitchCase() is MiniGoCompilerParser.DefaultSwitchContext)
+                hasDefault = true;
+
+            if (!GuaranteesReturn(clause.statementList()))
+                return false;
+        }
+
+        return hasDefault;
+    }
+
     /// <summary>
     /// Type-checks a <c>return</c> statement, comparing the actual returned
     /// type (if any) against the expected type sitting on top of
@@ -1307,13 +1363,15 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             syntaxError("Return outside of function", context.RETURN().Symbol);
             return null;
         }
+
         SymbolsTable.TypeInfo expected = returnTypeStack.Peek();
         if (context.expression() != null)
         {
             SymbolsTable.TypeInfo actual = (SymbolsTable.TypeInfo)Visit(context.expression());
             if (expected == null)
                 syntaxError("Function does not return a value", context.RETURN().Symbol);
-            else if (actual != null && (actual.Category != expected.Category || actual.SimpleType != expected.SimpleType))
+            else if (actual != null &&
+                     (actual.Category != expected.Category || actual.SimpleType != expected.SimpleType))
                 syntaxError("Incompatible return type", context.RETURN().Symbol);
         }
         else if (expected != null)
@@ -1322,7 +1380,6 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
         }
 
         return null;
-        
     }
 
     /// <summary>
@@ -1421,9 +1478,20 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
                 syntaxError("Cannot apply " + op.Text + " to this type", op);
             }
         }
+
         return null;
     }
-    
+    /// <summary>
+    /// Determines whether an expression can appear on the left-hand side of a
+    /// mutating operation such as <c>++</c> or <c>--</c>. An expression is treated
+    /// as addressable only when it is a primary expression representing an
+    /// identifier, an indexed element, or a selected struct field.
+    /// </summary>
+    /// <param name="expr">Expression node to validate as addressable.</param>
+    /// <returns>
+    /// <c>true</c> when the expression is an identifier, index access, or selector
+    /// access; otherwise, <c>false</c>.
+    /// </returns>
     
     private bool IsAddressable(MiniGoCompilerParser.ExpressionContext expr)
     {
@@ -1471,7 +1539,7 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
                 }
 
                 IToken token = idOp.identifier().IDENTIFIER().Symbol;
-                string name  = token.Text;
+                string name = token.Text;
                 SymbolsTable.TypeInfo exprType = exprTypes.ElementAt(i);
 
                 SymbolsTable.Ident ident = symbolsTable.SearchActualLevel(name);
@@ -1490,7 +1558,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
                 }
             }
         }
-        catch (TypeErrorException) { }
+        catch (TypeErrorException)
+        {
+        }
+
         return null;
     }
 
@@ -1507,24 +1578,31 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
     {
         try
         {
-            LinkedList<SymbolsTable.TypeInfo> leftTypes = (LinkedList<SymbolsTable.TypeInfo>)Visit(context.expressionList()[0]);
-            LinkedList<SymbolsTable.TypeInfo> rightTypes = (LinkedList<SymbolsTable.TypeInfo>)Visit(context.expressionList()[1]);
+            LinkedList<SymbolsTable.TypeInfo> leftTypes =
+                (LinkedList<SymbolsTable.TypeInfo>)Visit(context.expressionList()[0]);
+            LinkedList<SymbolsTable.TypeInfo> rightTypes =
+                (LinkedList<SymbolsTable.TypeInfo>)Visit(context.expressionList()[1]);
             if (leftTypes.Count != rightTypes.Count)
             {
                 syntaxError("Identifier count does not match expression count", context.EQUAL().Symbol);
                 return null;
             }
+
             for (int i = 0; i < leftTypes.Count; i++)
             {
                 if (leftTypes.ElementAt(i) != null && rightTypes.ElementAt(i) != null &&
                     (leftTypes.ElementAt(i).Category != rightTypes.ElementAt(i).Category
                      || leftTypes.ElementAt(i).SimpleType != rightTypes.ElementAt(i).SimpleType))
                 {
-                    syntaxError("Incompatible types in assignment", 
+                    syntaxError("Incompatible types in assignment",
                         context.expressionList(0).expression(i).Start, leftTypes.ElementAt(i), rightTypes.ElementAt(i));
                 }
             }
-        } catch (TypeErrorException e) { }
+        }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -1534,7 +1612,7 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
     /// </summary>
     public override object VisitAddAssignment(MiniGoCompilerParser.AddAssignmentContext context)
     {
-        SymbolsTable.TypeInfo left  = (SymbolsTable.TypeInfo)Visit(context.expression(0));
+        SymbolsTable.TypeInfo left = (SymbolsTable.TypeInfo)Visit(context.expression(0));
         SymbolsTable.TypeInfo right = (SymbolsTable.TypeInfo)Visit(context.expression(1));
 
         if (left != null && right != null &&
@@ -1548,6 +1626,7 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
         {
             syntaxError("Cannot apply += to this type", context.ADDEQ().Symbol);
         }
+
         return null;
     }
 
@@ -1562,7 +1641,7 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
 
         if (left != null && right != null &&
             (left.Category != right.Category || left.SimpleType != right.SimpleType))
-            syntaxError("Incompatible types in assignment", context.ANDEQ().Symbol, left,right);
+            syntaxError("Incompatible types in assignment", context.ANDEQ().Symbol, left, right);
 
         if (left != null && (left.Category != "simple" || left.SimpleType != 0))
             syntaxError("Cannot apply &= to this type", context.ANDEQ().Symbol);
@@ -1583,7 +1662,7 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             (left.Category != right.Category || left.SimpleType != right.SimpleType))
             syntaxError("Incompatible types in assignment", context.SUBEQ().Symbol);
 
-        if (left != null && (left.Category != "simple" || 
+        if (left != null && (left.Category != "simple" ||
                              (left.SimpleType != 0 && left.SimpleType != 1 && left.SimpleType != 3)))
             syntaxError("Cannot apply -= to this type", context.SUBEQ().Symbol);
 
@@ -1622,7 +1701,7 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             (left.Category != right.Category || left.SimpleType != right.SimpleType))
             syntaxError("Incompatible types in assignment", context.MULEQ().Symbol);
 
-        if (left != null && (left.Category != "simple" || 
+        if (left != null && (left.Category != "simple" ||
                              (left.SimpleType != 0 && left.SimpleType != 1 && left.SimpleType != 3)))
             syntaxError("Cannot apply *= to this type", context.MULEQ().Symbol);
 
@@ -1737,7 +1816,7 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             (left.Category != right.Category || left.SimpleType != right.SimpleType))
             syntaxError("Incompatible types in assignment", context.DIVEQ().Symbol);
 
-        if (left != null && (left.Category != "simple" || 
+        if (left != null && (left.Category != "simple" ||
                              (left.SimpleType != 0 && left.SimpleType != 1 && left.SimpleType != 3)))
             syntaxError("Cannot apply /= to this type", context.DIVEQ().Symbol);
 
@@ -1758,16 +1837,21 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
     /// </summary>
     public override object VisitNormalIfStatement(MiniGoCompilerParser.NormalIfStatementContext context)
     {
-        try{
-        SymbolsTable.TypeInfo exprType = (SymbolsTable.TypeInfo) Visit(context.expression());
-        if (exprType != null && exprType.SimpleType != 4)
+        try
         {
-            syntaxError("Invalid type in an if-statement", context.IF().Symbol);
+            SymbolsTable.TypeInfo exprType = (SymbolsTable.TypeInfo)Visit(context.expression());
+            if (exprType != null && exprType.SimpleType != 4)
+            {
+                syntaxError("Invalid type in an if-statement", context.IF().Symbol);
+            }
+
+            symbolsTable.OpenScope();
+            Visit(context.block());
+            symbolsTable.CloseScope();
         }
-        symbolsTable.OpenScope();
-        Visit(context.block());
-        symbolsTable.CloseScope();
-        } catch (TypeErrorException e){}
+        catch (TypeErrorException e)
+        {
+        }
 
         return null;
     }
@@ -1786,12 +1870,15 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
                 syntaxError("Invalid type in an if-statement", context.IF().Symbol);
 
             symbolsTable.OpenScope();
-            Visit(context.block());    
+            Visit(context.block());
             symbolsTable.CloseScope();
 
-            Visit(context.ifStatement());  
+            Visit(context.ifStatement());
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -1808,14 +1895,17 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
                 syntaxError("Invalid type in an if-statement", context.IF().Symbol);
 
             symbolsTable.OpenScope();
-            Visit(context.block(0));    // bloque del if
+            Visit(context.block(0)); // bloque del if
             symbolsTable.CloseScope();
 
             symbolsTable.OpenScope();
-            Visit(context.block(1));    // bloque del else
+            Visit(context.block(1)); // bloque del else
             symbolsTable.CloseScope();
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -1830,7 +1920,7 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
         {
             symbolsTable.OpenScope();
             Visit(context.simpleStatement());
-        
+
             SymbolsTable.TypeInfo exprType = (SymbolsTable.TypeInfo)Visit(context.expression());
             if (exprType != null && exprType.SimpleType != 4)
                 syntaxError("Invalid type in an if-statement", context.IF().Symbol);
@@ -1838,7 +1928,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             Visit(context.block());
             symbolsTable.CloseScope();
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -1852,7 +1945,7 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
         {
             symbolsTable.OpenScope();
             Visit(context.simpleStatement());
-        
+
             SymbolsTable.TypeInfo exprType = (SymbolsTable.TypeInfo)Visit(context.expression());
             if (exprType != null && exprType.SimpleType != 4)
                 syntaxError("Invalid type in an if-statement", context.IF().Symbol);
@@ -1862,7 +1955,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
 
             Visit(context.ifStatement());
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -1871,13 +1967,14 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
     /// init-statement and condition share a scope with the then-branch; the
     /// else-branch opens its own scope independent of the init bindings.
     /// </summary>
-    public override object VisitSimpleElseBlockIfStatement(MiniGoCompilerParser.SimpleElseBlockIfStatementContext context)
+    public override object VisitSimpleElseBlockIfStatement(
+        MiniGoCompilerParser.SimpleElseBlockIfStatementContext context)
     {
         try
         {
             symbolsTable.OpenScope();
             Visit(context.simpleStatement());
-        
+
             SymbolsTable.TypeInfo exprType = (SymbolsTable.TypeInfo)Visit(context.expression());
             if (exprType != null && exprType.SimpleType != 4)
                 syntaxError("Invalid type in an if-statement", context.IF().Symbol);
@@ -1889,7 +1986,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             Visit(context.block(1));
             symbolsTable.CloseScope();
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -1915,18 +2015,17 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
     /// </summary>
     public override object VisitConditionLoop(MiniGoCompilerParser.ConditionLoopContext context)
     {
-        
         SymbolsTable.TypeInfo exprType = (SymbolsTable.TypeInfo)Visit(context.expression());
         if (exprType != null && exprType.SimpleType != 4)
         {
             syntaxError("Invalid type in an for-statement", context.FOR().Symbol);
-
         }
-            symbolsTable.OpenScope();
-            Visit(context.block());
-            symbolsTable.CloseScope();
-            
-            return null;
+
+        symbolsTable.OpenScope();
+        Visit(context.block());
+        symbolsTable.CloseScope();
+
+        return null;
     }
 
     /// <summary>
@@ -1940,9 +2039,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
         {
             symbolsTable.OpenScope();
             Visit(context.simpleStatement(0));
-        
+
             SymbolsTable.TypeInfo exprType = (SymbolsTable.TypeInfo)Visit(context.expression());
-            if (exprType != null && exprType.SimpleType != 4){
+            if (exprType != null && exprType.SimpleType != 4)
+            {
                 syntaxError("Invalid type in an for-statement", context.FOR().Symbol);
             }
 
@@ -1950,7 +2050,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             Visit(context.block());
             symbolsTable.CloseScope();
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -1968,7 +2071,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             Visit(context.block());
             symbolsTable.CloseScope();
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -1990,7 +2096,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             Visit(context.expressionCaseClauseList());
             symbolsTable.CloseScope();
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -2007,7 +2116,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             Visit(context.expressionCaseClauseList());
             symbolsTable.CloseScope();
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -2024,7 +2136,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             Visit(context.expressionCaseClauseList());
             symbolsTable.CloseScope();
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -2040,7 +2155,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             Visit(context.expressionCaseClauseList());
             symbolsTable.CloseScope();
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -2055,7 +2173,6 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             {
                 Visit(clause);
             }
-            
         }
 
         return null;
@@ -2074,7 +2191,10 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             Visit(context.statementList());
             symbolsTable.CloseScope();
         }
-        catch (TypeErrorException e) { }
+        catch (TypeErrorException e)
+        {
+        }
+
         return null;
     }
 
@@ -2084,9 +2204,13 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
     /// </summary>
     public override object VisitCaseSwitch(MiniGoCompilerParser.CaseSwitchContext context)
     {
-        try {
+        try
+        {
             Visit(context.expressionList());
-        } catch (TypeErrorException e) { }
+        }
+        catch (TypeErrorException e)
+        {
+        }
 
         return null;
     }
@@ -2114,6 +2238,7 @@ private bool SwitchGuaranteesReturn(MiniGoCompilerParser.SwitchStmtContext ctx)
             syntaxError("Undefined identifier", token);
             return null;
         }
+
         context.decl = ident.Decl;
         return ident.Type;
     }

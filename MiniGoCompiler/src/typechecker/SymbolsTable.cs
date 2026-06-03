@@ -1,4 +1,5 @@
 namespace MiniGoCompiler.typechecker;
+
 using Antlr4.Runtime;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,49 +29,57 @@ public class SymbolsTable
     /// Soporta tipos simples (int, float, string, etc.), arrays con tamaño fijo,
     /// slices dinámicos y structs con campos nombrados.
     /// </summary>
-    public class TypeInfo {
+    public class TypeInfo
+    {
         /// <summary>Categoría del tipo: "simple", "array", "slice" o "struct".</summary>
         private string category;
+
         /// <summary>Código del tipo simple: 0=int, 1=float, 2=string, etc.</summary>
         private int simpleType;
+
         /// <summary>Tamaño del array (aplica solo cuando category es "array").</summary>
         private int size;
+
         /// <summary>Tipo interno de los elementos (aplica para arrays y slices).</summary>
         private TypeInfo insideType;
+
         /// <summary>Mapa de campos para structs: nombre del campo → tipo asociado.</summary>
         private Dictionary<string, TypeInfo> fields;
-        
+
         /// <summary>Obtiene la categoría del tipo ("simple", "array", "slice" o "struct").</summary>
         public string Category => category;
+
         /// <summary>Obtiene el código del tipo simple.</summary>
         public int SimpleType => simpleType;
+
         /// <summary>Obtiene el tamaño del array.</summary>
         public int Size => size;
+
         /// <summary>Obtiene el tipo interno de los elementos del array o slice.</summary>
         public TypeInfo InsideType => insideType;
+
         /// <summary>Obtiene el diccionario de campos del struct.</summary>
         public Dictionary<string, TypeInfo> Fields => fields;
 
-    /// <summary>
-    /// Crea una nueva instancia de TypeInfo con toda la información de tipo necesaria.
-    /// </summary>
-    /// <param name="category">Categoría del tipo: "simple", "array", "slice" o "struct".</param>
-    /// <param name="simpleType">Código numérico del tipo simple (0=int, 1=float, 2=string).</param>
-    /// <param name="size">Tamaño del array; se ignora para otras categorías.</param>
-    /// <param name="insideType">Tipo interno para arrays/slices; null para tipos simples y structs.</param>
-    /// <param name="fields">Diccionario de campos para structs; null para otras categorías.</param>
-    public TypeInfo(string category, int simpleType, int size, TypeInfo insideType, Dictionary<string, TypeInfo> fields)
-    {
-        this.category = category;
-        this.simpleType = simpleType;
-        this.size = size;
-        this.insideType = insideType;
-        this.fields = fields;
+        /// <summary>
+        /// Crea una nueva instancia de TypeInfo con toda la información de tipo necesaria.
+        /// </summary>
+        /// <param name="category">Categoría del tipo: "simple", "array", "slice" o "struct".</param>
+        /// <param name="simpleType">Código numérico del tipo simple (0=int, 1=float, 2=string).</param>
+        /// <param name="size">Tamaño del array; se ignora para otras categorías.</param>
+        /// <param name="insideType">Tipo interno para arrays/slices; null para tipos simples y structs.</param>
+        /// <param name="fields">Diccionario de campos para structs; null para otras categorías.</param>
+        public TypeInfo(string category, int simpleType, int size, TypeInfo insideType,
+            Dictionary<string, TypeInfo> fields)
+        {
+            this.category = category;
+            this.simpleType = simpleType;
+            this.size = size;
+            this.insideType = insideType;
+            this.fields = fields;
+        }
     }
-}
-    
-    
-    
+
 
     /// <summary>
     /// Clase base abstracta que representa un identificador en la tabla de símbolos.
@@ -127,7 +136,6 @@ public class SymbolsTable
         public VarIdent(IToken t, TypeInfo tp, int level, ParserRuleContext d) : base(t, tp, level, d)
         {
         }
-        
     }
 
     /// <summary>
@@ -167,7 +175,8 @@ public class SymbolsTable
         /// <param name="level">Nivel de scope.</param>
         /// <param name="p">Lista de tipos de los parámetros formales.</param>
         /// <param name="d">Contexto de declaración en el árbol de parseo.</param>
-        public FunctionIdent(IToken t, TypeInfo tp, int level, LinkedList<TypeInfo> p, ParserRuleContext d) : base(t, tp, level, d)
+        public FunctionIdent(IToken t, TypeInfo tp, int level, LinkedList<TypeInfo> p, ParserRuleContext d) : base(t,
+            tp, level, d)
         {
             this.parameters = p;
         }
@@ -242,6 +251,7 @@ public class SymbolsTable
                 break;
             }
         }
+
         return temp;
     }
 
@@ -265,6 +275,7 @@ public class SymbolsTable
             else
                 break;
         }
+
         return temp;
     }
 
@@ -300,6 +311,7 @@ public class SymbolsTable
             IToken s = table.ElementAt(i).Token;
             Console.WriteLine("Nombre: " + s.Text + " - " + table.ElementAt(i).Level + " - " + table.ElementAt(i).Type);
         }
+
         Console.WriteLine("----- FIN TABLA ------");
     }
 }

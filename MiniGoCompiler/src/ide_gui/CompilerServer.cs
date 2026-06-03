@@ -58,7 +58,7 @@ public class CompilerServer
     {
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://localhost:{PORT}/");
-        
+
         // Attempt to locate index.html relative to the build output directory
         _htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "ide_gui", "index.html");
         if (!File.Exists(_htmlPath))
@@ -81,7 +81,7 @@ public class CompilerServer
         Console.WriteLine($"║   Open: http://localhost:{PORT}            ║");
         Console.WriteLine($"║   Press Ctrl+C to stop                    ║");
         Console.WriteLine($"╚══════════════════════════════════════════╝");
-        
+
         Task.Run(() => Listen());
     }
 
@@ -99,7 +99,10 @@ public class CompilerServer
                 var context = await _listener.GetContextAsync();
                 _ = Task.Run(() => HandleRequest(context));
             }
-            catch (HttpListenerException) { break; }
+            catch (HttpListenerException)
+            {
+                break;
+            }
         }
     }
 
@@ -160,6 +163,7 @@ public class CompilerServer
         {
             SendResponse(response, 500, $"File not found: {_htmlPath}");
         }
+
         response.Close();
     }
 
@@ -296,6 +300,7 @@ public class CompilerServer
                     if (char.IsDigit(c)) lineNum += c;
                     else break;
                 }
+
                 if (int.TryParse(lineNum, out int ln)) error.line = ln;
             }
 
@@ -310,10 +315,14 @@ public class CompilerServer
                     if (char.IsDigit(c)) colNum += c;
                     else break;
                 }
+
                 if (int.TryParse(colNum, out int col)) error.column = col;
             }
         }
-        catch { /* If parsing fails, fall back to default line 1, column 1 */ }
+        catch
+        {
+            /* If parsing fails, fall back to default line 1, column 1 */
+        }
 
         return error;
     }

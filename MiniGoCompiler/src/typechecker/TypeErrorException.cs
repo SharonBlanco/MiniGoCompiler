@@ -36,7 +36,7 @@ public class TypeErrorException : RuntimeBinderException
         int charPositionInLine, string msg, RecognitionException e)
     {
         string type;
-        
+
         if (recognizer is MiniGoTypeChecker)
         {
             type = "TYPE ERROR" + " in [line: " + "- column:" + charPositionInLine + "]  expected: " +
@@ -46,8 +46,7 @@ public class TypeErrorException : RuntimeBinderException
         {
             type = "UNKNOWN ERROR";
         }
+
         errorList.Add($"{type}: {msg} [line{line}- column:{charPositionInLine}]");
     }
-    
-    
 }
