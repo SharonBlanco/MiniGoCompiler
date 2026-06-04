@@ -5,18 +5,18 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="src\encoder\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
+      <PackageReference Include="libLLVM" Version="20.1.2" />
+      <PackageReference Include="LLVMSharp" Version="20.1.2" />
+      <PackageReference Include="LLVMSharp.Interop" Version="20.1.2" />
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="test.txt">
+      <None Update="Pruebas\test_sin_errores.txt">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
     </ItemGroup>

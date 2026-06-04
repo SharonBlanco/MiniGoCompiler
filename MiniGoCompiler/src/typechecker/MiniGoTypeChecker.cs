@@ -138,12 +138,22 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Entry point of the semantic analysis. Opens the global scope, visits
+    /// Entry point of the semantic analysis. Opens the global scope,
+    /// predeclares the built-in identifiers <c>true</c> and <c>false</c>
+    /// as bool-typed variables (mirroring Go's universe block), visits
     /// every top-level declaration, then closes the scope before returning.
     /// </summary>
     public override object VisitRoot(MiniGoCompilerParser.RootContext context)
     {
         symbolsTable.OpenScope();
+        SymbolsTable.TypeInfo boolType = new SymbolsTable.TypeInfo("simple", 4, 0, null, null);
+
+        IToken trueToken  = new CommonToken(MiniGoCompilerLexer.IDENTIFIER, "true");
+        IToken falseToken = new CommonToken(MiniGoCompilerLexer.IDENTIFIER, "false");
+
+        symbolsTable.InsertVariableLevel(trueToken,  boolType, symbolsTable.GetActualLevel(), context);
+        symbolsTable.InsertVariableLevel(falseToken, boolType, symbolsTable.GetActualLevel(), context);
+
         Visit(context.topDeclarationList());
         symbolsTable.CloseScope();
         return null;
@@ -155,6 +165,9 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitTopDeclarationList(MiniGoCompilerParser.TopDeclarationListContext context)
     {
+        if (context.children == null)
+            return null;
+
         foreach (var child in context.children)
         {
             Visit(child);

@@ -7,11 +7,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
             --bg-deep: #0a0e14;
@@ -149,83 +145,171 @@
             overflow: hidden;
         }
 
-        /* ═══ EDITOR PANEL ═══ */
-        .editor-panel {
+        /* ═══ EDITOR + BOTTOM PANELS ═══ */
+        .editor-area {
             flex: 1;
             display: flex;
             flex-direction: column;
             min-width: 0;
         }
 
+        .editor-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
         .editor-tab-bar {
             display: flex;
             align-items: center;
             height: 36px;
-            background: var(--bg-deep);
+            background: var(--bg-panel);
             border-bottom: 1px solid var(--border);
-            padding: 0 8px;
+            padding: 0 12px;
         }
 
         .editor-tab {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            color: var(--text-secondary);
-            padding: 6px 14px;
-            background: var(--bg-panel);
+            font-size: 12px;
+            color: var(--text-primary);
+            padding: 6px 12px;
+            background: var(--bg-surface);
             border: 1px solid var(--border);
             border-bottom: none;
             border-radius: 6px 6px 0 0;
             display: flex;
             align-items: center;
             gap: 6px;
-            position: relative;
-            top: 1px;
         }
 
-        .editor-tab .dot {
+        .dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: var(--accent-go);
+            background: var(--accent-green);
+            transition: background 0.3s;
         }
 
-        /* Punto naranja cuando hay cambios sin compilar */
-        .editor-tab .dot.dirty {
+        .dot.dirty {
             background: var(--accent-orange);
         }
 
         #editor-container {
             flex: 1;
-            overflow: hidden;
+            min-height: 0;
         }
 
-        /* ═══ OUTPUT PANEL ═══ */
+        /* ═══ OUTPUT BOTTOM PANEL (Salida del programa / LLVM IR) ═══ */
+        .bottom-panel {
+            background: var(--bg-panel);
+            border-top: 2px solid var(--accent-go);
+            display: none; /* se muestra solo cuando hay output */
+            flex-direction: column;
+            max-height: 250px;
+            min-height: 120px;
+        }
+
+        .bottom-panel.visible {
+            display: flex;
+        }
+
+        .bottom-tabs {
+            display: flex;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .bottom-tab {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 7px 16px;
+            cursor: pointer;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .bottom-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .bottom-tab.active {
+            color: var(--accent-go);
+            border-bottom-color: var(--accent-go);
+        }
+
+        .bottom-content {
+            margin: 0;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            overflow-y: auto;
+            flex: 1;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .bottom-content.success {
+            color: var(--accent-green);
+        }
+
+        .bottom-content.error-output {
+            color: var(--accent-red);
+        }
+
+        /* ═══ RESIZE HANDLE (horizontal, editor ↔ error panel) ═══ */
+        .resize-handle {
+            width: 4px;
+            cursor: col-resize;
+            background: var(--border);
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        .resize-handle:hover,
+        .resize-handle.active {
+            background: var(--accent-go);
+        }
+
+        /* ═══ ERROR PANEL (derecha) ═══ */
         .output-panel {
-            width: 420px;
+            width: 340px;
+            min-width: 200px;
+            max-width: 600px;
+            background: var(--bg-panel);
             display: flex;
             flex-direction: column;
             border-left: 1px solid var(--border);
-            background: var(--bg-panel);
-            flex-shrink: 0;
         }
 
         .output-tabs {
             display: flex;
-            height: 36px;
+            background: var(--bg-surface);
             border-bottom: 1px solid var(--border);
-            background: var(--bg-deep);
+            padding: 0 12px;
+            flex-shrink: 0;
         }
 
         .output-tab {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            padding: 0 16px;
-            color: var(--text-muted);
+            font-size: 12px;
+            padding: 8px 0;
+            margin-right: 16px;
+            color: var(--text-secondary);
             background: none;
             border: none;
             cursor: pointer;
             border-bottom: 2px solid transparent;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .output-tab.active {
@@ -233,54 +317,37 @@
             border-bottom-color: var(--accent-go);
         }
 
-        .output-tab .badge {
+        .badge {
             font-size: 10px;
             padding: 1px 6px;
             border-radius: 10px;
-            margin-left: 6px;
             font-weight: 600;
         }
 
-        .output-tab .badge.errors {
-            background: rgba(255, 83, 112, 0.15);
-            color: var(--accent-red);
+        .badge.errors {
+            background: var(--accent-red);
+            color: white;
         }
 
-        .output-tab .badge.success {
-            background: rgba(60, 220, 124, 0.15);
-            color: var(--accent-green);
+        .badge.success {
+            background: var(--accent-green);
+            color: var(--bg-deep);
         }
 
         .output-content {
             flex: 1;
             overflow-y: auto;
-            padding: 12px;
+            padding: 8px 0;
         }
 
-        .output-content::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .output-content::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .output-content::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 3px;
-        }
-
-        /* ═══ ERROR ITEMS ═══ */
         .error-item {
             display: flex;
             align-items: flex-start;
             gap: 10px;
-            padding: 10px 12px;
-            border-radius: 6px;
+            padding: 8px 16px;
             cursor: pointer;
             transition: background 0.15s;
             border-left: 3px solid transparent;
-            margin-bottom: 4px;
         }
 
         .error-item:hover {
@@ -291,10 +358,6 @@
             border-left-color: var(--accent-red);
         }
 
-        .error-item.warning {
-            border-left-color: var(--accent-yellow);
-        }
-
         .error-icon {
             width: 18px;
             height: 18px;
@@ -302,7 +365,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             flex-shrink: 0;
             margin-top: 1px;
@@ -313,69 +376,37 @@
             color: var(--accent-red);
         }
 
-        .error-details {
-            flex: 1;
-            min-width: 0;
-        }
-
         .error-msg {
+            font-family: 'DM Sans', sans-serif;
             font-size: 12px;
             color: var(--text-primary);
             line-height: 1.4;
-            word-break: break-word;
         }
 
         .error-location {
             font-family: 'JetBrains Mono', monospace;
             font-size: 10px;
-            color: var(--text-secondary);
-            margin-top: 3px;
+            color: var(--text-muted);
+            margin-top: 2px;
         }
 
-        /* ═══ SUCCESS STATE ═══ */
         .success-message {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100%;
+            padding: 40px 20px;
             gap: 12px;
             color: var(--accent-green);
         }
 
         .success-message svg {
-            width: 48px;
-            height: 48px;
-            opacity: 0.7;
+            width: 36px;
+            height: 36px;
         }
 
         .success-message p {
-            font-family: 'JetBrains Mono', monospace;
             font-size: 13px;
-        }
-
-        /* ═══ EMPTY STATE ═══ */
-        .empty-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            gap: 8px;
-            color: var(--text-muted);
-        }
-
-        .empty-state p {
-            font-size: 12px;
-        }
-
-        .empty-state kbd {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            padding: 2px 8px;
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: 4px;
             color: var(--text-secondary);
         }
 
@@ -390,21 +421,14 @@
             border-top: 1px solid var(--border);
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
-            color: var(--text-secondary);
+            color: var(--text-muted);
             flex-shrink: 0;
         }
 
-        .status-bar .status-left,
-        .status-bar .status-right {
+        .status-left, .status-right {
             display: flex;
             align-items: center;
-            gap: 16px;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            gap: 12px;
         }
 
         .status-dot {
@@ -414,40 +438,13 @@
             background: var(--text-muted);
         }
 
-        .status-dot.ready {
-            background: var(--accent-green);
-        }
-
-        .status-dot.error {
-            background: var(--accent-red);
-        }
-
-        .status-dot.checking {
-            background: var(--accent-orange);
-            animation: pulse 1s infinite;
-        }
+        .status-dot.ready { background: var(--accent-green); }
+        .status-dot.error { background: var(--accent-red); }
+        .status-dot.checking { background: var(--accent-orange); animation: pulse 1s infinite; }
 
         @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.4;
-            }
-        }
-
-        /* ═══ RESIZE HANDLE ═══ */
-        .resize-handle {
-            width: 4px;
-            cursor: col-resize;
-            background: transparent;
-            transition: background 0.2s;
-            flex-shrink: 0;
-        }
-
-        .resize-handle:hover,
-        .resize-handle.active {
-            background: var(--accent-go);
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
         }
     </style>
 </head>
@@ -465,23 +462,15 @@
     </div>
     <div class="header-actions">
         <button class="btn btn-sample" onclick="loadSample()">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-            </svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Ejemplo
         </button>
         <button class="btn btn-clear" onclick="clearEditor()">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 6h18"/>
-                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
-            </svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
             Limpiar
         </button>
         <button class="btn btn-compile" id="compileBtn" onclick="compile()">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="5 3 19 12 5 21 5 3"/>
-            </svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             Compilar
         </button>
     </div>
@@ -489,18 +478,40 @@
 
 <!-- MAIN -->
 <div class="main">
-    <div class="editor-panel">
-        <div class="editor-tab-bar">
-            <div class="editor-tab">
-                <span class="dot" id="tabDot"></span>
-                main.go
+
+    <!-- Editor + Bottom output panel -->
+    <div class="editor-area">
+
+        <div class="editor-panel">
+            <div class="editor-tab-bar">
+                <div class="editor-tab">
+                    <span class="dot" id="tabDot"></span>
+                    main.go
+                </div>
             </div>
+            <div id="editor-container"></div>
         </div>
-        <div id="editor-container"></div>
+
+        <!-- Panel inferior: salida del programa y LLVM IR -->
+        <div class="bottom-panel" id="bottomPanel">
+            <div class="bottom-tabs">
+                <button class="bottom-tab active" id="tabOutput" onclick="switchBottomTab('output')">
+                    ▶ Salida del Programa
+                </button>
+                <button class="bottom-tab" id="tabIR" onclick="switchBottomTab('ir')">
+                    { } LLVM IR
+                </button>
+            </div>
+            <pre class="bottom-content" id="programOutput"></pre>
+            <pre class="bottom-content" id="llvmIR" style="display:none"></pre>
+        </div>
+
     </div>
 
+    <!-- Resize handle -->
     <div class="resize-handle" id="resizeHandle"></div>
 
+    <!-- Error panel (derecha) -->
     <div class="output-panel" id="outputPanel">
         <div class="output-tabs">
             <button class="output-tab active" id="tabErrors">
@@ -508,89 +519,79 @@
             </button>
         </div>
         <div class="output-content" id="outputContent">
-            <div class="empty-state">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                     style="color: var(--text-muted)">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+            <div class="success-message">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                    <path d="M12 6v6l4 2"/>
                 </svg>
-                <p>Presioná <kbd>Compilar</kbd> para verificar el código</p>
-                <p style="font-size:11px; color: var(--text-muted)">Ctrl+Enter o se verifica automáticamente al
-                    escribir</p>
+                <p>Escribí código MiniGo y presioná Compilar</p>
             </div>
         </div>
     </div>
+
 </div>
 
 <!-- STATUS BAR -->
 <div class="status-bar">
     <div class="status-left">
-        <div class="status-indicator">
-            <span class="status-dot ready" id="statusDot"></span>
-            <span id="statusText">Listo</span>
-        </div>
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Listo</span>
     </div>
     <div class="status-right">
         <span id="cursorPos">Ln 1, Col 1</span>
         <span>MiniGo</span>
-        <span>UTF-8</span>
     </div>
 </div>
 
 <!-- Monaco Editor -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
 <script>
     let editor;
-
-    // ═══ Temporizador para compilación automática ═══
-    // Se dispara 700ms después de que el usuario deja de escribir
-    let autoCompileTimer = null;
+    let autoCompileTimer;
     const AUTO_COMPILE_DELAY = 700;
 
-    // ═══ CONFIGURAR MONACO ═══
-    require.config({paths: {vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}});
+    // ═══ MONACO SETUP ═══
+    require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
 
     require(['vs/editor/editor.main'], function () {
 
-        // Registrar lenguaje MiniGo
-        monaco.languages.register({id: 'minigo'});
+        // ── Registrar lenguaje MiniGo ──
+        monaco.languages.register({ id: 'minigo' });
 
         monaco.languages.setMonarchTokensProvider('minigo', {
             keywords: [
-                'package', 'if', 'else', 'for', 'switch', 'case', 'default',
-                'var', 'type', 'func', 'struct', 'return', 'break', 'continue',
-                'append', 'len', 'cap', 'print', 'println'
+                'package', 'func', 'var', 'type', 'struct', 'return',
+                'if', 'else', 'for', 'switch', 'case', 'default',
+                'break', 'continue', 'print', 'println',
+                'append', 'len', 'cap', 'true', 'false'
             ],
             typeKeywords: ['int', 'float64', 'string', 'rune', 'bool'],
             operators: [
-                '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>=', '&^=',
-                ':=', '++', '--', '<<', '>>', '&^', '&&', '||',
-                '==', '!=', '<=', '>=', '<', '>',
-                '+', '-', '*', '/', '%', '&', '|', '^', '!', '='
+                '+', '-', '*', '/', '%', '&', '|', '^', '<<', '>>',
+                '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>=',
+                '&&', '||', '!', '==', '!=', '<', '>', '<=', '>=',
+                ':=', '=', '++', '--', '&^', '&^='
             ],
             symbols: /[=><!~?:&|+\-*\/\^%]+/,
             tokenizer: {
                 root: [
-                    [/\/\/.*$/, 'comment'],
-                    [/\/\*/, 'comment', '@comment'],
-                    [/`[^`]*`/, 'string'],
-                    [/"([^"\\]|\\.)*"/, 'string'],
-                    [/'([^'\\]|\\.)'/, 'string.char'],
-                    [/\d+\.\d*([eE][\-+]?\d+)?/, 'number.float'],
-                    [/\.\d+([eE][\-+]?\d+)?/, 'number.float'],
-                    [/0[xX][0-9a-fA-F_]+/, 'number.hex'],
-                    [/0[bB][01_]+/, 'number.binary'],
-                    [/0[oO]?[0-7_]+/, 'number.octal'],
-                    [/\d[0-9_]*/, 'number'],
                     [/[a-zA-Z_]\w*/, {
                         cases: {
+                            '@typeKeywords': 'keyword.type',
                             '@keywords': 'keyword',
-                            '@typeKeywords': 'type',
                             '@default': 'identifier'
                         }
                     }],
                     [/[{}()\[\]]/, '@brackets'],
+                    [/[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?/, 'number'],
+                    [/0[xX][0-9a-fA-F]+/, 'number.hex'],
+                    [/0[oO]?[0-7]+/, 'number.octal'],
+                    [/0[bB][01]+/, 'number.binary'],
+                    [/"([^"\\]|\\.)*"/, 'string'],
+                    [/`[^`]*`/, 'string.raw'],
+                    [/'([^'\\]|\\.)'/, 'string.rune'],
+                    [/\/\/.*$/, 'comment'],
+                    [/\/\*/, 'comment', '@comment'],
                     [/@symbols/, {
                         cases: {
                             '@operators': 'operator',
@@ -603,79 +604,69 @@
                     [/[^\/*]+/, 'comment'],
                     [/\*\//, 'comment', '@pop'],
                     [/[\/*]/, 'comment']
-                ],
+                ]
             }
         });
 
-        // Tema personalizado
+        // ── Tema oscuro personalizado ──
         monaco.editor.defineTheme('minigo-dark', {
             base: 'vs-dark',
             inherit: true,
             rules: [
-                {token: 'keyword', foreground: 'c792ea', fontStyle: 'bold'},
-                {token: 'type', foreground: '00add8'},
-                {token: 'string', foreground: 'c3e88d'},
-                {token: 'string.char', foreground: 'f78c6c'},
-                {token: 'number', foreground: 'f78c6c'},
-                {token: 'number.float', foreground: 'f78c6c'},
-                {token: 'number.hex', foreground: 'f78c6c'},
-                {token: 'number.binary', foreground: 'f78c6c'},
-                {token: 'number.octal', foreground: 'f78c6c'},
-                {token: 'comment', foreground: '546e7a', fontStyle: 'italic'},
-                {token: 'operator', foreground: '89ddff'},
-                {token: 'delimiter', foreground: '89ddff'},
-                {token: 'identifier', foreground: 'c8d0dc'},
+                { token: 'keyword',      foreground: 'c792ea', fontStyle: 'bold' },
+                { token: 'keyword.type',  foreground: '00add8' },
+                { token: 'identifier',    foreground: 'c8d0dc' },
+                { token: 'number',        foreground: 'f78c6c' },
+                { token: 'number.hex',    foreground: 'f78c6c' },
+                { token: 'number.octal',  foreground: 'f78c6c' },
+                { token: 'number.binary', foreground: 'f78c6c' },
+                { token: 'string',        foreground: '3cdc7c' },
+                { token: 'string.raw',    foreground: '3cdc7c' },
+                { token: 'string.rune',   foreground: 'ffcb6b' },
+                { token: 'comment',       foreground: '546e7a', fontStyle: 'italic' },
+                { token: 'operator',      foreground: '89ddff' },
+                { token: 'delimiter',     foreground: '6b7a8d' },
             ],
             colors: {
                 'editor.background': '#0f1319',
                 'editor.foreground': '#c8d0dc',
-                'editor.lineHighlightBackground': '#151a2288',
-                'editor.selectionBackground': '#3d4f6f55',
-                'editorCursor.foreground': '#00add8',
                 'editorLineNumber.foreground': '#3e4957',
                 'editorLineNumber.activeForeground': '#6b7a8d',
-                'editor.selectionHighlightBackground': '#3d4f6f33',
+                'editor.lineHighlightBackground': '#151a2280',
+                'editor.selectionBackground': '#1c222d',
+                'editorCursor.foreground': '#00add8',
                 'editorIndentGuide.background': '#1e2530',
-                'editorGutter.background': '#0f1319',
-                'editorOverviewRuler.border': '#1e2530',
             }
         });
 
-        // Crear editor
+        // ── Crear el editor ──
         editor = monaco.editor.create(document.getElementById('editor-container'), {
-            value: getSampleCode(),
+            value: '// Escribí tu código MiniGo acá\npackage main;\n\n',
             language: 'minigo',
             theme: 'minigo-dark',
-            fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+            fontFamily: "'JetBrains Mono', monospace",
             fontSize: 14,
             lineHeight: 22,
-            padding: {top: 12},
-            minimap: {enabled: false},
+            padding: { top: 12 },
+            minimap: { enabled: false },
             scrollBeyondLastLine: false,
-            renderWhitespace: 'none',
-            bracketPairColorization: {enabled: true},
-            smoothScrolling: true,
+            renderLineHighlight: 'all',
             cursorBlinking: 'smooth',
-            cursorSmoothCaretAnimation: 'on',
-            roundedSelection: true,
+            smoothScrolling: true,
             automaticLayout: true,
             tabSize: 4,
+            insertSpaces: true,
         });
 
-        // ── Actualizar posición del cursor ──
+        // ── Actualizar posición del cursor en la barra de estado ──
         editor.onDidChangeCursorPosition(function (e) {
             document.getElementById('cursorPos').textContent =
-                `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+                'Ln ' + e.position.lineNumber + ', Col ' + e.position.column;
         });
 
-        // ── Compilación automática al escribir ──
-        // Cada vez que el contenido cambia, se reinicia el temporizador.
-        // Si el usuario para de escribir 700 ms, se lanza la compilación.
+        // ── Auto-compile después de 700ms sin escribir ──
         editor.onDidChangeModelContent(function () {
-            // Marcar el tab como "con cambios pendientes"
             document.getElementById('tabDot').classList.add('dirty');
-
-            // Cancelar el temporizador anterior y arrancar uno nuevo
             clearTimeout(autoCompileTimer);
             autoCompileTimer = setTimeout(function () {
                 compile();
@@ -694,17 +685,18 @@
         });
     });
 
+
     // ═══ COMPILAR ═══
     async function compile() {
         if (!editor) return;
 
-        const btn = document.getElementById('compileBtn');
-        const statusDot = document.getElementById('statusDot');
+        const btn        = document.getElementById('compileBtn');
+        const statusDot  = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
 
         btn.classList.add('compiling');
         btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Compilando...';
-        statusDot.className = 'status-dot checking';
+        statusDot.className  = 'status-dot checking';
         statusText.textContent = 'Verificando...';
 
         const code = editor.getValue();
@@ -712,13 +704,12 @@
         try {
             const response = await fetch('/compile', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({code})
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
             });
             const result = await response.json();
             showResults(result);
         } catch (err) {
-            // El servidor no está disponible
             showResults({
                 success: false,
                 errors: [{
@@ -730,26 +721,26 @@
 
         btn.classList.remove('compiling');
         btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Compilar';
-
-        // Quitar la marca de "cambios pendientes" del tab
         document.getElementById('tabDot').classList.remove('dirty');
     }
 
+
     // ═══ MOSTRAR RESULTADOS ═══
     function showResults(result) {
-        const content = document.getElementById('outputContent');
-        const badge = document.getElementById('errorBadge');
-        const statusDot = document.getElementById('statusDot');
+        const content    = document.getElementById('outputContent');
+        const badge      = document.getElementById('errorBadge');
+        const statusDot  = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
 
         // Limpiar marcadores previos en el editor
         monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
 
         if (!result.errors || result.errors.length === 0) {
-            badge.style.display = 'inline';
-            badge.className = 'badge success';
-            badge.textContent = '✓';
-            statusDot.className = 'status-dot ready';
+            // ── Compilación exitosa ──
+            badge.style.display  = 'inline';
+            badge.className      = 'badge success';
+            badge.textContent    = '✓';
+            statusDot.className  = 'status-dot ready';
             statusText.textContent = 'Compilación exitosa';
 
             content.innerHTML = `
@@ -761,135 +752,158 @@
                         <p>Compilación exitosa — 0 errores</p>
                     </div>`;
         } else {
+            // ── Hay errores ──
             const errorCount = result.errors.length;
-            badge.style.display = 'inline';
-            badge.className = 'badge errors';
-            badge.textContent = errorCount;
-            statusDot.className = 'status-dot error';
-            statusText.textContent = `${errorCount} error${errorCount > 1 ? 'es' : ''} encontrado${errorCount > 1 ? 's' : ''}`;
+            badge.style.display  = 'inline';
+            badge.className      = 'badge errors';
+            badge.textContent    = errorCount;
+            statusDot.className  = 'status-dot error';
+            statusText.textContent = errorCount + ' error' + (errorCount > 1 ? 'es' : '') + ' encontrado' + (errorCount > 1 ? 's' : '');
 
             // Lista de errores en el panel derecho
-            content.innerHTML = result.errors.map(err => `
-                    <div class="error-item error" onclick="goToError(${err.line || 1}, ${err.column || 1})">
-                        <div class="error-icon err">✕</div>
-                        <div class="error-details">
-                            <div class="error-msg">${escapeHtml(err.message)}</div>
-                            <div class="error-location">Línea ${err.line || '?'}, Columna ${err.column || '?'}</div>
-                        </div>
-                    </div>
-                `).join('');
+            content.innerHTML = result.errors.map(function (err) {
+                return '<div class="error-item error" onclick="goToError(' + (err.line || 1) + ', ' + (err.column || 1) + ')">' +
+                    '<div class="error-icon err">✕</div>' +
+                    '<div>' +
+                    '<div class="error-msg">' + escapeHtml(err.message) + '</div>' +
+                    '<div class="error-location">Línea ' + (err.line || '?') + ', Columna ' + (err.column || '?') + '</div>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
 
-            // Marcadores rojos dentro del editor
-            const markers = result.errors.map(err => ({
-                severity: monaco.MarkerSeverity.Error,
-                message: err.message,
-                startLineNumber: err.line || 1,
-                startColumn: err.column || 1,
-                endLineNumber: err.line || 1,
-                endColumn: (err.column || 1) + (err.length || 1),
-            }));
+            // Marcadores rojos en el editor
+            var markers = result.errors.map(function (err) {
+                return {
+                    severity: monaco.MarkerSeverity.Error,
+                    message: err.message,
+                    startLineNumber: err.line || 1,
+                    startColumn: err.column || 1,
+                    endLineNumber: err.line || 1,
+                    endColumn: (err.column || 1) + (err.length || 1)
+                };
+            });
             monaco.editor.setModelMarkers(editor.getModel(), 'compiler', markers);
+        }
+
+        // ── Panel inferior: salida del programa y LLVM IR ──
+        var bottomPanel   = document.getElementById('bottomPanel');
+        var programOutput = document.getElementById('programOutput');
+        var llvmIR        = document.getElementById('llvmIR');
+
+        if (result.success && (result.output || result.ir)) {
+            // Compilación exitosa con output del encoder
+            bottomPanel.classList.add('visible');
+            programOutput.textContent = result.output || '(el programa no produjo salida)';
+            programOutput.className   = 'bottom-content success';
+            llvmIR.textContent        = result.ir || '';
+            llvmIR.className          = 'bottom-content';
+            switchBottomTab('output');
+        } else if (result.ir) {
+            // Hubo IR pero falló el link/ejecución
+            bottomPanel.classList.add('visible');
+            programOutput.textContent = result.output || '(error durante la ejecución)';
+            programOutput.className   = 'bottom-content error-output';
+            llvmIR.textContent        = result.ir;
+            llvmIR.className          = 'bottom-content';
+            switchBottomTab('output');
+        } else {
+            // Errores de sintaxis/tipos: no hay nada que mostrar abajo
+            bottomPanel.classList.remove('visible');
+            programOutput.textContent = '';
+            llvmIR.textContent        = '';
         }
     }
 
-    // ═══ NAVEGAR A ERROR ═══
-    function goToError(line, column) {
+
+    // ═══ SWITCH ENTRE TABS DE OUTPUT ═══
+    function switchBottomTab(tab) {
+        var outputEl = document.getElementById('programOutput');
+        var irEl     = document.getElementById('llvmIR');
+        var tabOut   = document.getElementById('tabOutput');
+        var tabIr    = document.getElementById('tabIR');
+
+        if (tab === 'output') {
+            outputEl.style.display = 'block';
+            irEl.style.display     = 'none';
+            tabOut.classList.add('active');
+            tabIr.classList.remove('active');
+        } else {
+            outputEl.style.display = 'none';
+            irEl.style.display     = 'block';
+            tabOut.classList.remove('active');
+            tabIr.classList.add('active');
+        }
+    }
+
+
+    // ═══ HELPERS ═══
+    function goToError(line, col) {
         editor.revealLineInCenter(line);
-        editor.setPosition({lineNumber: line, column: column});
+        editor.setPosition({ lineNumber: line, column: col });
         editor.focus();
     }
 
-    // ═══ UTILIDADES ═══
     function escapeHtml(text) {
-        const div = document.createElement('div');
+        var div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
 
     function clearEditor() {
-        if (!editor) return;
-        clearTimeout(autoCompileTimer);
-        editor.setValue('package main;\n\n');
-        monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
-        document.getElementById('outputContent').innerHTML = `
-                <div class="empty-state">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-muted)">
-                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    <p>Presioná <kbd>Compilar</kbd> para verificar el código</p>
-                </div>`;
-        document.getElementById('errorBadge').style.display = 'none';
-        document.getElementById('statusDot').className = 'status-dot ready';
-        document.getElementById('statusText').textContent = 'Listo';
-        document.getElementById('tabDot').classList.remove('dirty');
+        editor.setValue('');
+        document.getElementById('bottomPanel').classList.remove('visible');
     }
 
     function loadSample() {
-        if (!editor) return;
-        clearTimeout(autoCompileTimer);
-        editor.setValue(getSampleCode());
-        monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
+        editor.setValue(
+            'package main;\n' +
+            '\n' +
+            'var x int = 10;\n' +
+            'var y int = 20;\n' +
+            '\n' +
+            'func suma(a int, b int) int {\n' +
+            '    return a + b;\n' +
+            '};\n' +
+            '\n' +
+            'func main() {\n' +
+            '    var resultado int = suma(x, y);\n' +
+            '    println(resultado);\n' +
+            '};\n'
+        );
     }
 
-    function getSampleCode() {
-        return `package main;
 
-var x int = 10;
-var name string = "MiniGo";
+    // ═══ RESIZE HANDLE (arrastrar para redimensionar panel de errores) ═══
+    (function () {
+        var handle = document.getElementById('resizeHandle');
+        var panel  = document.getElementById('outputPanel');
+        var dragging = false;
 
-type Persona struct {
-    nombre string;
-    edad int;
-};
+        handle.addEventListener('mousedown', function (e) {
+            dragging = true;
+            handle.classList.add('active');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
 
-func suma(a int, b int) int {
-    return a + b;
-};
+        document.addEventListener('mousemove', function (e) {
+            if (!dragging) return;
+            var newWidth = window.innerWidth - e.clientX;
+            if (newWidth >= 200 && newWidth <= 600) {
+                panel.style.width = newWidth + 'px';
+            }
+        });
 
-func main() {
-    var resultado int = suma(3, 7);
-    println(resultado);
-
-    var p Persona;
-
-    if resultado > 5 {
-        println("Mayor que 5");
-    } else {
-        println("Menor o igual a 5");
-    };
-
-    for i := 0; i < 10; i++ {
-        println(i);
-    };
-};
-`;
-    }
-
-    // ═══ RESIZE HANDLE ═══
-    const resizeHandle = document.getElementById('resizeHandle');
-    const outputPanel = document.getElementById('outputPanel');
-    let isResizing = false;
-
-    resizeHandle.addEventListener('mousedown', () => {
-        isResizing = true;
-        resizeHandle.classList.add('active');
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        const newWidth = window.innerWidth - e.clientX;
-        if (newWidth >= 280 && newWidth <= 700)
-            outputPanel.style.width = newWidth + 'px';
-    });
-
-    document.addEventListener('mouseup', () => {
-        isResizing = false;
-        resizeHandle.classList.remove('active');
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-    });
+        document.addEventListener('mouseup', function () {
+            if (dragging) {
+                dragging = false;
+                handle.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+    })();
 </script>
 </body>
 </html>

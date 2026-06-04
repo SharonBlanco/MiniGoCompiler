@@ -5,6 +5,7 @@ using Antlr4.Runtime;
 using syntaxchecker.generated;
 using MiniGoCompiler.typechecker;
 using MiniGoCompiler.errors;
+using MiniGoCompiler.encoder;
 
 namespace MiniGoCompiler.ide;
 
@@ -258,13 +259,44 @@ public class CompilerServer
                     errors.Add(parsed);
                 }
             }
+
+            // PHASE 3: Code generation (only if no syntax/type errors)
+            if (errors.Count == 0)
+            {
+                try
+                {
+                    var encoder = new MiniGoEncoder();
+                    encoder.Visit(tree);
+
+                    result.ir = encoder.GeneratedIR;
+                    result.output = encoder.ProgramOutput;
+
+                    if (!encoder.CompilationSuccess && !string.IsNullOrEmpty(encoder.ErrorMessage))
+                    {
+                        errors.Add(new CompileError
+                        {
+                            message = "CODE GEN ERROR: " + encoder.ErrorMessage,
+                            line = 1,
+                            column = 1,
+                            length = 1
+                        });
+                    }
+                }
+                catch (Exception codeGenEx)
+                {
+                    Console.WriteLine($"Code generation failed: {codeGenEx}");
+                    result.ir = "";
+                    result.output = "";
+                }
+            }
         }
+
         catch (Exception ex)
         {
             // Catch-all for unexpected internal compiler errors
             errors.Add(new CompileError
             {
-                message = $"Internal compiler error: {ex.Message}",
+                message = $"Internal compiler error: {ex.Message}\n{ex.StackTrace}",
                 line = 1,
                 column = 1
             });
@@ -326,6 +358,25 @@ public class CompilerServer
 
         return error;
     }
+    
+     
+    public class CompileResult
+    {
+        /// <summary>True si no hubo errores en ninguna fase.</summary>
+        public bool success { get; set; }
+ 
+        /// <summary>Lista de errores de sintaxis o tipos.</summary>
+        public List<CompileError> errors { get; set; } = new List<CompileError>();
+ 
+        // ---- NUEVOS: resultados del encoder ----
+ 
+        /// <summary>Salida estándar del programa compilado (lo que imprime con println).</summary>
+        public string output { get; set; } = "";
+ 
+        /// <summary>El LLVM IR generado (para que el IDE lo pueda mostrar).</summary>
+        public string ir { get; set; } = "";
+    }
+
 
     /// <summary>
     /// Sends a plain-text HTTP response with the given status code and message body.

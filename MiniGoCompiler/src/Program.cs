@@ -1,44 +1,60 @@
-﻿using Antlr4.Runtime;
+using Antlr4.Runtime;
 using syntaxchecker.generated;
+using MiniGoCompiler.typechecker;
 using MiniGoCompiler.ide;
 
 class Program
 {
     static void Main(string[] args)
     {
-        string filePath = Path.Combine(AppContext.BaseDirectory, "test.txt");
+        var server = new CompilerServer();
+        server.Start();
 
-        if (!File.Exists(filePath))
+        string filePath = "/home/sharonblancopiedra/Documents/VII SEMESTRE/COMPILADORES/SEMANA 12/MiniGoCompiler/MiniGoCompiler/Tests/test_crash.txt";
+
+        if (File.Exists(filePath))
         {
-            Console.WriteLine($"No se encontró el archivo: {filePath}");
-            return;
-        }
+            
+            try
+            {
+                string input = File.ReadAllText(filePath);
 
-        string input = File.ReadAllText(filePath);
+                AntlrInputStream inputStream = new AntlrInputStream(input);
+                MiniGoCompilerLexer lexer = new MiniGoCompilerLexer(inputStream);
+                CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+                MiniGoCompilerParser parser = new MiniGoCompilerParser(tokenStream);
 
-        AntlrInputStream inputStream = new AntlrInputStream(input);
+                var tree = parser.root();
 
-        MiniGoCompilerLexer lexer = new MiniGoCompilerLexer(inputStream);
-        CommonTokenStream tokenStream = new CommonTokenStream(lexer);
-
-        MiniGoCompilerParser parser = new MiniGoCompilerParser(tokenStream);
-
-        // Regla inicial de tu gramática
-        parser.root();
-
-        if (parser.NumberOfSyntaxErrors == 0)
-        {
-            Console.WriteLine("Archivo válido sintácticamente.");
+                if (parser.NumberOfSyntaxErrors > 0)
+                {
+                    Console.WriteLine($"Errores de sintaxis: {parser.NumberOfSyntaxErrors}");
+                }
+                else
+                {
+                    MiniGoTypeChecker typeChecker = new MiniGoTypeChecker();
+                    typeChecker.Visit(tree);
+                    typeChecker.printErrors();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Compilation failed: {ex.Message}");
+            }
         }
         else
         {
-            Console.WriteLine($"Archivo inválido. Errores encontrados: {parser.NumberOfSyntaxErrors}");
+            Console.WriteLine($"Archivo de prueba no encontrado: {filePath}");
         }
-        var server = new CompilerServer();
-        server.Start();
-        Console.WriteLine("Presionar Enter para salir...");
-        Console.ReadLine();
 
-
+        // Mantener el proceso vivo para que el servidor HTTP siga corriendo
+        var exitEvent = new ManualResetEventSlim(false);
+        Console.CancelKeyPress += (s, e) =>
+        {
+            e.Cancel = true;
+            exitEvent.Set();
+        };
+        Console.WriteLine("Servidor corriendo. Presiona Ctrl+C para salir...");
+        exitEvent.Wait();
     }
 }

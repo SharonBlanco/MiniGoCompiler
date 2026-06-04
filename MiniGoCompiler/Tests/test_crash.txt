@@ -1,0 +1,399 @@
+package main;
+
+// =============================================================
+// CRASH TEST 1: Cadena de identificadores no definidos
+// Si la propagación de null no está bien protegida, esto truena.
+// =============================================================
+func testNullChain() {
+    var a int = noExiste + 1;
+    var b int = noExiste * noExiste2;
+    var c int = noExiste + noExiste2 + noExiste3;
+    var d int = (((noExiste + 1) * 2) - 3);
+    var e bool = noExiste == 1;
+    var f bool = noExiste && noExiste2;
+    var g bool = noExiste || noExiste2;
+    var h bool = !noExiste;
+    var i int = -noExiste;
+    var j int = +noExiste;
+    var k int = ^noExiste;
+};
+
+// =============================================================
+// CRASH TEST 2: Selector y index sobre expresión que da null
+// =============================================================
+func testNullAccess() {
+    var a int = noExiste.campo;
+    var b int = noExiste[0];
+    var c int = noExiste.campo.subcampo;
+    var d int = noExiste[0][1];
+    var e int = noExiste.campo[0];
+};
+
+// =============================================================
+// CRASH TEST 3: Llamada a función no definida, resultado usado
+// =============================================================
+func testNullCall() {
+    var a int = noExisteFn(1, 2) + 5;
+    var b bool = noExisteFn(1) == 1;
+    var c int = noExisteFn();
+    println(noExisteFn(1));
+};
+
+// =============================================================
+// CRASH TEST 4: Resultado de función void usado en expresión
+// =============================================================
+func voidFunc() {
+};
+
+func testVoidResult() {
+    var a int = voidFunc();
+    var b int = voidFunc() + 1;
+    var c bool = voidFunc() == 1;
+    voidFunc() + 1;
+};
+
+// =============================================================
+// CRASH TEST 5: Tipo no definido usado en declaraciones
+// =============================================================
+var globalNoType NoExiste;
+
+func testUndefinedType() {
+    var a NoExiste;
+    var b [5]NoExiste;
+    var c []NoExiste;
+};
+
+// =============================================================
+// CRASH TEST 6: Tipo recursivo / referencia circular
+// =============================================================
+type TipoA TipoB;
+type TipoB TipoA;
+
+// =============================================================
+// CRASH TEST 7: Struct vacío
+// =============================================================
+type Vacio struct {};
+
+func testEmptyStruct() {
+    var v Vacio;
+    var x int = v.campo;
+};
+
+// =============================================================
+// CRASH TEST 8: Array de tamaño 0
+// =============================================================
+var arrVacio [0]int;
+
+func testEmptyArray() {
+    var a [0]int;
+    var b int = a[0];
+    var c int = len(a);
+    var d int = cap(a);
+};
+
+// =============================================================
+// CRASH TEST 9: Expresiones como LHS de :=
+// =============================================================
+func testBadDeclare() {
+    var arr [3]int;
+    var x int = 1;
+    1 + 2 := 5;
+    arr[0] := 10;
+    (x) := 5;
+};
+
+// =============================================================
+// CRASH TEST 10: Asignación a resultado de función
+// =============================================================
+func retInt() int {
+    return 1;
+};
+
+func testBadAssign() {
+    retInt() = 5;
+    5 = 10;
+};
+
+// =============================================================
+// CRASH TEST 11: Switch / if / for con cuerpo vacío
+// =============================================================
+func testEmptyBodies() {
+    if true {
+    };
+
+    if true {
+    } else {
+    };
+
+    for true {
+        break;
+    };
+
+    switch 1 {
+    };
+
+    switch {
+    };
+
+    for {
+        break;
+    };
+
+    {
+    };
+};
+
+// =============================================================
+// CRASH TEST 12: Función sin parámetros ni retorno, cuerpo vacío
+// =============================================================
+func totalmenteVacia() {
+};
+
+// =============================================================
+// CRASH TEST 13: Muchos errores en una sola línea
+// =============================================================
+func testManyErrors() {
+    var a int = noExiste + "hola" * true - 3.14;
+};
+
+// =============================================================
+// CRASH TEST 14: Print/Println con expresiones que fallan
+// =============================================================
+func testPrintErrors() {
+    println(noExiste);
+    println(noExiste + 1);
+    println(noExiste, noExiste2, noExiste3);
+    print(noExiste.campo);
+    print();
+    println();
+};
+
+// =============================================================
+// CRASH TEST 15: Declaración múltiple con errores parciales
+// =============================================================
+func testPartialErrors() {
+    var a, b int = 1, "hola";
+    var c, d int = noExiste, 5;
+    a, b = "x", 1;
+};
+
+// =============================================================
+// CRASH TEST 16: Return en contextos problemáticos
+// =============================================================
+func testReturnEdge() int {
+    if true {
+        if true {
+            if true {
+                return 1;
+            } else {
+                return 2;
+            };
+        } else {
+            return 3;
+        };
+    } else {
+        return 4;
+    };
+};
+
+// =============================================================
+// CRASH TEST 17: Len/Cap/Append sobre tipos incorrectos
+// =============================================================
+func testBuiltinEdge() {
+    var a int = 5;
+    var b bool = true;
+    var s string = "hola";
+
+    var l1 int = len(a);
+    var l2 int = len(b);
+    var l3 int = len(5);
+    var c1 int = cap(a);
+    var c2 int = cap(s);
+    var c3 int = cap(b);
+
+    a = append(a, 1);
+    s = append(s, "x");
+    b = append(b, true);
+};
+
+// =============================================================
+// CRASH TEST 18: Append con tipos que no matchean
+// =============================================================
+func testAppendMismatch() {
+    var sl []int;
+    sl = append(sl, "hola");
+    sl = append(sl, 3.14);
+    sl = append(sl, true);
+};
+
+// =============================================================
+// CRASH TEST 19: Switch con init + errores
+// =============================================================
+func testSwitchEdge() {
+    switch noExiste; noExiste2 {
+    case noExiste3:
+        println(noExiste4);
+    default:
+        println(noExiste5);
+    };
+
+    switch noExiste {
+    };
+
+    switch {
+    case noExiste:
+        println("x");
+    };
+};
+
+// =============================================================
+// CRASH TEST 20: For completo con todos los componentes con error
+// =============================================================
+func testForEdge() {
+    for noExiste; noExiste2; noExiste3 {
+        println(noExiste4);
+        break;
+    };
+
+    for noExiste;; noExiste2 {
+        break;
+    };
+};
+
+// =============================================================
+// CRASH TEST 21: If con init que tiene error
+// =============================================================
+func testIfEdge() {
+    if noExiste; noExiste2 {
+        println(noExiste3);
+    };
+
+    if noExiste; noExiste2 {
+        println("a");
+    } else {
+        println("b");
+    };
+
+    if noExiste; noExiste2 {
+        println("a");
+    } else if noExiste3 {
+        println("b");
+    } else {
+        println("c");
+    };
+};
+
+// =============================================================
+// CRASH TEST 22: Operaciones sobre struct con campo null-type
+// =============================================================
+type ConCampoMalo struct {
+    x NoExisteTipo;
+};
+
+func testStructNullField() {
+    var s ConCampoMalo;
+    var a int = s.x;
+    var b int = s.x + 1;
+    println(s.x);
+};
+
+// =============================================================
+// CRASH TEST 23: Función con parámetro de tipo no definido
+// =============================================================
+func funcConTipoMalo(a NoExisteTipo) int {
+    return 1;
+};
+
+// =============================================================
+// CRASH TEST 24: Asignaciones compuestas con null-typed expr
+// =============================================================
+func testCompoundNull() {
+    var a int = 1;
+    a += noExiste;
+    a -= noExiste;
+    a *= noExiste;
+    a /= noExiste;
+    a %= noExiste;
+    a &= noExiste;
+    a |= noExiste;
+    a ^= noExiste;
+    a <<= noExiste;
+    a >>= noExiste;
+    a &^= noExiste;
+    noExiste += 1;
+    noExiste -= 1;
+};
+
+// =============================================================
+// CRASH TEST 25: Incremento/Decremento sobre expresión null
+// =============================================================
+func testIncDecNull() {
+    noExiste++;
+    noExiste--;
+};
+
+// =============================================================
+// CRASH TEST 26: Función que se llama a sí misma (recursión)
+// =============================================================
+func factorial(n int) int {
+    if n <= 1 {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    };
+};
+
+// =============================================================
+// CRASH TEST 27: Shadowing extremo
+// =============================================================
+func testShadowing() {
+    var x int = 1;
+    {
+        var x string = "a";
+        {
+            var x bool = true;
+            {
+                var x float64 = 1.0;
+                {
+                    var x rune = 'A';
+                    println(x);
+                };
+                println(x);
+            };
+            println(x);
+        };
+        println(x);
+    };
+    println(x);
+};
+
+// =============================================================
+// CRASH TEST 28: Llamar función con args que son errores
+// =============================================================
+func sumar(a int, b int) int {
+    return a + b;
+};
+
+func testCallWithErrors() {
+    var r1 int = sumar(noExiste, 5);
+    var r2 int = sumar(noExiste, noExiste2);
+    var r3 int = sumar(1 + noExiste, 2 * noExiste2);
+};
+
+// =============================================================
+// CRASH TEST 29: Tipo parentizado
+// =============================================================
+func testGroupedType() {
+    var a (int) = 5;
+    var b ((int)) = 10;
+};
+
+// =============================================================
+// CRASH TEST 30: Scope leak test - variable de for no debe existir afuera
+// =============================================================
+func testForScopeLeak() {
+    for i := 0; i < 10; i++ {
+        println(i);
+    };
+    println(i);
+};
