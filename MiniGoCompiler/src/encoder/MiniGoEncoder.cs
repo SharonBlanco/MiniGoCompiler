@@ -3,7 +3,9 @@ using System.Runtime.InteropServices;
 using syntaxchecker.generated;
 using System;
 using LLVMSharp.Interop;
+using MiniGoCompiler.typechecker;
 using static LLVMSharp.Interop.LLVM;
+using ArrayType = LLVMSharp.ArrayType;
 
 namespace MiniGoCompiler.encoder;
 
@@ -18,15 +20,21 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
     private LLVMTypeRef runeType;
     private LLVMTypeRef boolType;
     private LLVMTypeRef stringType;
+    private LLVMTypeRef array;
     
     private LLVMValueRef currentFunc;
+    // Variable reference table: maps variable names to their LLVM alloca pointers
+    private Dictionary<string, LLVMValueRef> referenceTable = new Dictionary<string, LLVMValueRef>();
+
+// Variable type table: maps variable names to their LLVM types (needed for load instructions)
+    private Dictionary<string, LLVMTypeRef> typeTable = new Dictionary<string, LLVMTypeRef>();
 
     public unsafe MiniGoEncoder()
     {
         module = LLVMModuleRef.CreateWithName("minigo");
         builder = module.Context.CreateBuilder();
         intType = Int32Type();
-        floatType = Int64Type();
+        floatType = DoubleType();
         
         
         runeType = Int8Type();
@@ -263,23 +271,140 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
 
     public override object VisitTopDeclarationList(MiniGoCompilerParser.TopDeclarationListContext context)
     {
-        return base.VisitTopDeclarationList(context);
+        foreach (var child in context.children)
+        {
+            Visit(child);
+        }
+
+        return null;
     }
 
-    public override object VisitVariableDecl(MiniGoCompilerParser.VariableDeclContext context)
+    public unsafe override object VisitVariableDecl(MiniGoCompilerParser.VariableDeclContext context)
     {
-        return base.VisitVariableDecl(context);
+        if (context.singleVarDecl() != null)
+        {
+            Visit(context.singleVarDecl());
+        }
+
+        if (context.innerVarDecls() != null)
+        {
+            Visit(context.innerVarDecls());
+        }
+
+        return null;
     }
 
     public override object VisitInnerVarDecls(MiniGoCompilerParser.InnerVarDeclsContext context)
     {
-        return base.VisitInnerVarDecls(context);
+       
+        foreach (MiniGoCompilerParser.SingleVarDeclContext svd in context.singleVarDecl())
+        {
+            Visit(svd);
+        }
+
+        return null;
     }
 
-    public override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDeclContext context)
+    // Add this field alongside referenceTable and typeTable
+private Dictionary<string, LLVMTypeRef> userDefinedTypes = new Dictionary<string, LLVMTypeRef>();
+
+private unsafe LLVMTypeRef ResolveLLVMType(MiniGoCompilerParser.DeclTypeContext ctx)
+{
+    // Simple/primitive types and user-defined type aliases
+    if (ctx is MiniGoCompilerParser.TypeDenoterDeclTypeContext typeDenoter)
     {
-        return base.VisitTypedVarDecl(context);
+        string name = typeDenoter.identifier().IDENTIFIER().GetText();
+        return name switch
+        {
+            "int"     => intType,
+            "float64" => floatType,
+            "string"  => stringType,
+            "rune"    => runeType,
+            "bool"    => boolType,
+            _         => userDefinedTypes.TryGetValue(name, out LLVMTypeRef resolved)
+                         ? resolved
+                         : intType
+        };
     }
+
+    // Parenthesized type: (T) → just unwrap
+    if (ctx is MiniGoCompilerParser.GroupDeclTypeContext group)
+        return ResolveLLVMType(group.declType());
+
+    // Array type: [N]T → fixed-size LLVM array
+    if (ctx is MiniGoCompilerParser.ArrayTypeDeclContext arrayCtx)
+    {
+        var arrayDecl = arrayCtx.arrayDeclType();
+        uint size = uint.Parse(arrayDecl.INTLITERAL().GetText());
+        LLVMTypeRef elementType = ResolveLLVMType(arrayDecl.declType());
+        return ArrayType(elementType, size);
+    }
+
+    // Slice type: []T → struct { T*, i32 len, i32 cap }
+    if (ctx is MiniGoCompilerParser.SliceTypeDeclContext sliceCtx)
+    {
+        var sliceDecl = sliceCtx.sliceDeclType();
+        LLVMTypeRef elementType = ResolveLLVMType(sliceDecl.declType());
+        LLVMTypeRef pointerToElement = PointerType(elementType, 0);
+        LLVMTypeRef[] sliceFields = { pointerToElement, intType, intType };
+        return LLVMTypeRef.CreateStruct(sliceFields, false);
+    }
+
+    // Struct type: struct { field1 T1; field2 T2; ... }
+    if (ctx is MiniGoCompilerParser.StructTypeDeclContext structCtx)
+    {
+        var structDecl = structCtx.structDeclType();
+        List<LLVMTypeRef> fieldTypes = new List<LLVMTypeRef>();
+
+        if (structDecl.structMemDecls() != null)
+        {
+            foreach (var member in structDecl.structMemDecls().singleVarDeclNoExps())
+            {
+                LLVMTypeRef memberType = ResolveLLVMType(member.declType());
+                foreach (var id in member.identifierList().IDENTIFIER())
+                {
+                    fieldTypes.Add(memberType);
+                }
+            }
+        }
+        return LLVMTypeRef.CreateStruct(fieldTypes.ToArray(), false);
+    }
+
+    return intType;
+}
+
+    public unsafe LLVMValueRef LoadVar(LLVMTypeRef type, LLVMValueRef ptr, string name)
+    {
+        fixed (byte* p = System.Text.Encoding.UTF8.GetBytes(name + "\0"))
+        {
+            return BuildLoad2(builder, type, ptr, (sbyte*)p);
+        }
+    }
+    public unsafe LLVMValueRef AllocaVar(LLVMTypeRef type, string name)
+    {
+        fixed (byte* p = System.Text.Encoding.UTF8.GetBytes(name + "\0"))
+        {
+            return BuildAlloca(builder, type, (sbyte*)p);
+        }
+    }
+
+public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDeclContext context)
+    {
+        LLVMTypeRef type = ResolveLLVMType((context.declType()));
+        var identifiers = context.identifierList().IDENTIFIER();
+        
+        LinkedList<LLVMValueRef> values = (LinkedList<LLVMValueRef>) Visit(context.expressionList());
+        for (int i = 0; i < identifiers.Length; i++)
+        {
+            string name = identifiers[i].Symbol.Text;
+            LLVMValueRef alloca = AllocaVar(type, name);
+            BuildStore(builder, values.ElementAt(i), alloca);
+            referenceTable[name] = alloca;
+            typeTable[name] = type;
+        }
+        return null;
+    }
+
 
     public override object VisitInferredVarDecl(MiniGoCompilerParser.InferredVarDeclContext context)
     {
@@ -305,10 +430,13 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
     {
         return base.VisitInnerTypeDecls(context);
     }
-
+    
     public override object VisitSingleTypeDecl(MiniGoCompilerParser.SingleTypeDeclContext context)
     {
-        return base.VisitSingleTypeDecl(context);
+        LLVMTypeRef resolved = ResolveLLVMType(context.declType());
+        string name = context.IDENTIFIER().GetText();
+        userDefinedTypes[name] = resolved;
+        return null;
     }
 
     public override object VisitFuncDecl(MiniGoCompilerParser.FuncDeclContext context)
@@ -378,7 +506,14 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
 
     public override object VisitExpressionList(MiniGoCompilerParser.ExpressionListContext context)
     {
-        return base.VisitExpressionList(context);
+        LinkedList<LLVMValueRef> values = new LinkedList<LLVMValueRef>();
+        foreach (var expr in context.expression())
+        {
+            LLVMValueRef val = (LLVMValueRef)Visit(expr);
+            values.AddLast(val);
+        }
+
+        return values;
     }
 
     public override object VisitPrimaryExpr(MiniGoCompilerParser.PrimaryExprContext context)
