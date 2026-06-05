@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MiniGoCompiler")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+775efc9388dafb82a5c484afffda19d543fc3523")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a70fb99b72c4ca63fb1c502f372093101222e1d5")]
 [assembly: System.Reflection.AssemblyProductAttribute("MiniGoCompiler")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MiniGoCompiler")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

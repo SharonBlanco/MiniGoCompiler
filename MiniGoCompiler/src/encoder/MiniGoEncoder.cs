@@ -405,6 +405,25 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
         return null;
     }
 
+    private unsafe LLVMValueRef GlobalString(string text, string name)
+    {
+        fixed (byte* t = System.Text.Encoding.UTF8.GetBytes(text + "\0"))
+        fixed (byte* p = System.Text.Encoding.UTF8.GetBytes(name + "\0"))
+        {
+            return BuildGlobalStringPtr(builder, (sbyte*)t, (sbyte*)p);
+        }
+    }
+
+    private unsafe LLVMValueRef CallFunction(LLVMTypeRef funcType, LLVMValueRef func,
+        LLVMValueRef[] args, string name)
+    {
+        fixed (LLVMValueRef* argsPtr = args)
+        fixed (byte* p = System.Text.Encoding.UTF8.GetBytes(name + "\0"))
+        {
+            return BuildCall2(builder, funcType, func, (LLVMOpaqueValue**)argsPtr, (uint)args.Length, (sbyte*)p);
+        }
+    }
+
 
     public override object VisitInferredVarDecl(MiniGoCompilerParser.InferredVarDeclContext context)
     {
@@ -439,9 +458,75 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
         return null;
     }
 
-    public override object VisitFuncDecl(MiniGoCompilerParser.FuncDeclContext context)
+    public unsafe override object VisitFuncDecl(MiniGoCompilerParser.FuncDeclContext context)
     {
-        return base.VisitFuncDecl(context);
+        var front = context.funcFrontDecl();
+    string funcName = front.IDENTIFIER().GetText();
+
+    // Return type
+    LLVMTypeRef retType = front.declType() != null 
+        ? ResolveLLVMType(front.declType()) 
+        : VoidType();
+
+    // Parameter types
+    LLVMTypeRef[] paramTypes = new LLVMTypeRef[0];
+    if (front.funcArgDecls() != null)
+    {
+        var paramDecls = front.funcArgDecls().singleVarDeclNoExps();
+        List<LLVMTypeRef> paramList = new List<LLVMTypeRef>();
+        foreach (var param in paramDecls)
+        {
+            LLVMTypeRef paramType = ResolveLLVMType(param.declType());
+            foreach (var id in param.identifierList().IDENTIFIER())
+            {
+                paramList.Add(paramType);
+            }
+        }
+        paramTypes = paramList.ToArray();
+    }
+
+    // Create function type and add to module
+    LLVMTypeRef funcType = LLVMTypeRef.CreateFunction(retType, paramTypes);
+    LLVMValueRef func = module.AddFunction(funcName, funcType);
+    currentFunc = func;
+
+    // Create entry block and position builder
+    LLVMBasicBlockRef entry = func.AppendBasicBlock("entry");
+    PositionBuilderAtEnd(builder, entry);
+
+    // Store parameters in alloca so they can be used as variables
+    if (front.funcArgDecls() != null)
+    {
+        int paramIndex = 0;
+        foreach (var param in front.funcArgDecls().singleVarDeclNoExps())
+        {
+            LLVMTypeRef paramType = ResolveLLVMType(param.declType());
+            foreach (var id in param.identifierList().IDENTIFIER())
+            {
+                string paramName = id.Symbol.Text;
+                LLVMValueRef alloca = AllocaVar(paramType, paramName);
+                BuildStore(builder, func.GetParam((uint)paramIndex), alloca);
+                referenceTable[paramName] = alloca;
+                typeTable[paramName] = paramType;
+                paramIndex++;
+            }
+        }
+    }
+
+    // Visit function body
+    Visit(context.block());
+
+    // Add default terminator if body didn't end with a return
+    LLVMBasicBlockRef currentBlock = GetInsertBlock(builder);
+    if (GetBasicBlockTerminator(currentBlock) == null)
+    {
+        if (retType == VoidType())
+            BuildRetVoid(builder);
+        else
+            BuildRet(builder, ConstNull(retType));
+    }
+
+    return null;
     }
 
     public override object VisitFuncFrontDecl(MiniGoCompilerParser.FuncFrontDeclContext context)
@@ -671,14 +756,23 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
         return base.VisitCapExpression(context);
     }
 
-    public override object VisitStatementList(MiniGoCompilerParser.StatementListContext context)
+    public unsafe override object VisitStatementList(MiniGoCompilerParser.StatementListContext context)
     {
-        return base.VisitStatementList(context);
+        foreach (var stmt in context.statement())
+        {
+            // Don't emit after a terminator (return/break/continue)
+            LLVMBasicBlockRef currentBlock = GetInsertBlock(builder);
+            if (GetBasicBlockTerminator(currentBlock) != null)
+                break;
+            Visit(stmt);
+        }
+        return null;
+
     }
 
     public override object VisitBlock(MiniGoCompilerParser.BlockContext context)
     {
-        return base.VisitBlock(context);
+        return Visit(context.statementList());
     }
 
     public override object VisitPrintStatement(MiniGoCompilerParser.PrintStatementContext context)
@@ -686,9 +780,69 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
         return base.VisitPrintStatement(context);
     }
 
-    public override object VisitPrintlnStatement(MiniGoCompilerParser.PrintlnStatementContext context)
+    public unsafe override object VisitPrintlnStatement(MiniGoCompilerParser.PrintlnStatementContext context)
     {
-        return base.VisitPrintlnStatement(context);
+        LLVMValueRef printfFunc;
+        fixed (byte* t = System.Text.Encoding.UTF8.GetBytes("printf\0"))
+        {
+            printfFunc = GetNamedFunction(module, (sbyte*)t);
+        }
+        LLVMTypeRef printfType;
+        if (printfFunc.Handle == IntPtr.Zero)
+        {
+            printfType = LLVMTypeRef.CreateFunction(intType, new[] { stringType }, true);
+            printfFunc = module.AddFunction("printf", printfType);
+        }
+        else
+        {
+            printfType = GlobalGetValueType(printfFunc);
+        }
+
+        // Print each argument
+        if (context.expressionList() != null)
+        {
+            var expressions = context.expressionList().expression();
+            for (int i = 0; i < expressions.Length; i++)
+            {
+                LLVMValueRef value = (LLVMValueRef) Visit(expressions[i]);
+                LLVMTypeRef exprType = TypeOf(value);
+
+                // Add space between arguments (Go println behavior)
+                if (i > 0)
+                {
+                    LLVMValueRef space = GlobalString(" ", "sp");
+                    CallFunction(printfType, printfFunc, new[] { space }, "");
+                }
+
+                // Pick format based on type
+                string format;
+                if (exprType == intType)
+                    format = "%d";
+                else if (exprType == floatType)
+                    format = "%f";
+                else if (exprType == runeType)
+                    format = "%c";
+                else if (exprType == boolType)
+                {
+                    fixed (byte* t = System.Text.Encoding.UTF8.GetBytes("boolext" + "\0")) 
+                    value = BuildZExt(builder, value, intType, (sbyte*)t);
+                    format = "%d";
+                }
+                else if (exprType == stringType)
+                    format = "%s";
+                else
+                    format = "%d";
+
+                LLVMValueRef formatStr = GlobalString(format, "fmt");
+                CallFunction(printfType, printfFunc, new[] { formatStr, value }, "");
+            }
+        }
+
+        // println always adds a newline at the end
+        LLVMValueRef newline = GlobalString("\n", "nl");
+        CallFunction(printfType, printfFunc, new[] { newline }, "");
+
+        return null;
     }
 
     public override object VisitReturnStatement(MiniGoCompilerParser.ReturnStatementContext context)
