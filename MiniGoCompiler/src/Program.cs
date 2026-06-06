@@ -46,8 +46,7 @@ class Program
         {
             Console.WriteLine($"Archivo de prueba no encontrado: {filePath}");
         }
-
-        // Mantener el proceso vivo para que el servidor HTTP siga corriendo
+        
         var exitEvent = new ManualResetEventSlim(false);
         Console.CancelKeyPress += (s, e) =>
         {
