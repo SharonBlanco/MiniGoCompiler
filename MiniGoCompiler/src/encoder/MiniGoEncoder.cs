@@ -586,8 +586,9 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
         
         var front = context.funcFrontDecl();
     string funcName = front.IDENTIFIER().GetText();
-    referenceTable.Clear();
-    typeTable.Clear();
+    var savedRefs = new Dictionary<string, LLVMValueRef>(referenceTable);
+    var savedTypes = new Dictionary<string, LLVMTypeRef>(typeTable);
+
 
     // Return type
     LLVMTypeRef retType = front.declType() != null 
@@ -658,6 +659,8 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
             BuildRet(builder, ConstNull(retType));
     }
 
+    referenceTable = savedRefs;
+    typeTable = savedTypes;
     return null;
     }
 
@@ -1153,8 +1156,9 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
     fixed (byte* p = S("memcpy")) memcpyFunc = GetNamedFunction(module, (sbyte*)p);
     if (memcpyFunc.Handle == IntPtr.Zero)
     {
+        LLVMTypeRef sizeT = Int64Type();
         LLVMTypeRef memcpyType = LLVMTypeRef.CreateFunction(
-            stringType, new[] { stringType, stringType, intType }, false);
+            stringType, new[] { stringType, stringType, sizeT }, false);  // ✅
         memcpyFunc = module.AddFunction("memcpy", memcpyType);
     }
     LLVMTypeRef memcpyFuncType = GlobalGetValueType(memcpyFunc);
@@ -1162,7 +1166,10 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
     LLVMValueRef oldPtrCast, newPtrCast;
     fixed (byte* p = S("oldcast")) oldPtrCast = BuildBitCast(builder, oldPtr, stringType, (sbyte*)p);
     fixed (byte* p = S("newcast")) newPtrCast = BuildBitCast(builder, newPtr, stringType, (sbyte*)p);
-    CallFunction(memcpyFuncType, memcpyFunc, new[] { newPtrCast, oldPtrCast, oldBytes }, "");
+    LLVMValueRef oldBytes64;
+    fixed (byte* p = S("oldbytes64"))
+        oldBytes64 = BuildZExt(builder, oldBytes, Int64Type(), (sbyte*)p);
+    CallFunction(memcpyFuncType, memcpyFunc, new[] { newPtrCast, oldPtrCast, oldBytes64 }, "");
 
     // Store new element at index oldLen
     LLVMValueRef[] gepIndices = { oldLen };
@@ -2043,38 +2050,36 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
 
         if (switchCase is MiniGoCompilerParser.CaseSwitchContext caseCtx)
         {
+            // Posicionar en el bloque de test actual y emitir comparaciones
             PositionBuilderAtEnd(builder, nextTest);
             var caseExprs = caseCtx.expressionList().expression();
             LLVMValueRef match = null;
-
             for (int j = 0; j < caseExprs.Length; j++)
             {
                 LLVMValueRef caseVal = (LLVMValueRef) Visit(caseExprs[j]);
                 LLVMValueRef cmp;
-                fixed (byte* p = S("cmptmp"))
-                    cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
-
-                if (match == null)
-                    match = cmp;
-                else
-                {
-                    LLVMBasicBlockRef newTest;
-                    fixed (byte* p = S("test" + (i + 1)))
-                        newTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-                    PositionBuilderAtEnd(builder, nextTest);
-                    BuildBr(builder, newTest); // fall-through al siguiente test
-                    nextTest = newTest;
-                }
+                fixed (byte* p = S("cmptmp")) cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
+                if (match == null) match = cmp;
+                else fixed (byte* p = S("ortmp")) match = BuildOr(builder, match, cmp, (sbyte*)p);
             }
 
-            fixed (byte* p = S("test" + (i + 1))) nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-            BuildCondBr(builder, match, caseBlocks[i], nextTest);
+            // Crear siguiente test y emitir UN solo terminator
+            fixed (byte* p = S("test" + (i + 1)))
+                nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+            BuildCondBr(builder, match, caseBlocks[i], nextTest);  // ← solo este
         }
-        else
+        else // default
         {
-            fixed (byte* p = S("test" + (i + 1))) nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+            // El test anterior apunta acá — necesita un branch incondicional al siguiente test
+            LLVMBasicBlockRef newTest;
+            fixed (byte* p = S("test" + (i + 1)))
+                newTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+            PositionBuilderAtEnd(builder, nextTest);
+            BuildBr(builder, newTest);
+            nextTest = newTest;
         }
 
+        // Emitir cuerpo del case/default
         PositionBuilderAtEnd(builder, caseBlocks[i]);
         Visit(clauses[i].statementList());
         if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
@@ -2111,8 +2116,10 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
     for (int i = 0; i < clauses.Length; i++)
     {
         var switchCase = clauses[i].expressionSwitchCase();
+
         if (switchCase is MiniGoCompilerParser.CaseSwitchContext caseCtx)
         {
+            // Posicionar en el bloque de test actual y emitir comparaciones
             PositionBuilderAtEnd(builder, nextTest);
             var caseExprs = caseCtx.expressionList().expression();
             LLVMValueRef match = null;
@@ -2120,28 +2127,34 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
             {
                 LLVMValueRef caseVal = (LLVMValueRef) Visit(caseExprs[j]);
                 LLVMValueRef cmp;
+                
                 fixed (byte* p = S("cmptmp")) cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
                 if (match == null) match = cmp;
                 else fixed (byte* p = S("ortmp")) match = BuildOr(builder, match, cmp, (sbyte*)p);
             }
+
+            // Crear siguiente test y emitir UN solo terminator
+            fixed (byte* p = S("test" + (i + 1)))
+                nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+            BuildCondBr(builder, match, caseBlocks[i], nextTest);  // ← solo este
+        }
+        else // default
+        {
+            // El test anterior apunta acá — necesita un branch incondicional al siguiente test
             LLVMBasicBlockRef newTest;
-            fixed (byte* p = S("test" + (i + 1))) 
+            fixed (byte* p = S("test" + (i + 1)))
                 newTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
             PositionBuilderAtEnd(builder, nextTest);
-            BuildBr(builder, newTest);   // fall-through al siguiente test
+            BuildBr(builder, newTest);
             nextTest = newTest;
-            BuildCondBr(builder, match, caseBlocks[i], nextTest);
         }
-        else
-        {
-            fixed (byte* p = S("test" + (i + 1))) nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-        }
+
+        // Emitir cuerpo del case/default
         PositionBuilderAtEnd(builder, caseBlocks[i]);
         Visit(clauses[i].statementList());
         if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
             BuildBr(builder, mergeBlock);
     }
-
     breakTargets.Pop();
     PositionBuilderAtEnd(builder, mergeBlock);
     return null;
