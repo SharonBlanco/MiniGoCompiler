@@ -284,9 +284,18 @@ public class CompilerServer
                 }
                 catch (Exception codeGenEx)
                 {
-                    Console.WriteLine($"Code generation failed: {codeGenEx}");
                     result.ir = "";
                     result.output = "";
+
+                    string location = GetExceptionLocation(codeGenEx);
+
+                    errors.Add(new CompileError
+                    {
+                        message = "CODE GEN EXCEPTION: " + codeGenEx.Message + location,
+                        line = 1,
+                        column = 1,
+                        length = 1
+                    });
                 }
             }
         }
@@ -358,21 +367,21 @@ public class CompilerServer
 
         return error;
     }
-    
-     
+
+
     public class CompileResult
     {
         /// <summary>True si no hubo errores en ninguna fase.</summary>
         public bool success { get; set; }
- 
+
         /// <summary>Lista de errores de sintaxis o tipos.</summary>
         public List<CompileError> errors { get; set; } = new List<CompileError>();
- 
+
         // ---- NUEVOS: resultados del encoder ----
- 
+
         /// <summary>Salida estándar del programa compilado (lo que imprime con println).</summary>
         public string output { get; set; } = "";
- 
+
         /// <summary>El LLVM IR generado (para que el IDE lo pueda mostrar).</summary>
         public string ir { get; set; } = "";
     }
@@ -392,5 +401,52 @@ public class CompilerServer
         response.ContentLength64 = buffer.Length;
         response.OutputStream.Write(buffer, 0, buffer.Length);
         response.Close();
+    }
+
+    /// <summary>
+    /// Extracts the most relevant source location from an exception thrown during
+    /// LLVM code generation. It scans the exception stack trace looking for the
+    /// first frame that belongs to <see cref="MiniGoEncoder"/> and returns the
+    /// encoder method name, and when available, the C# source line number where
+    /// the exception occurred.
+    /// </summary>
+    /// <remarks>
+    /// This method does not report the exact MiniGo source line. It is intended as
+    /// a lightweight diagnostic helper for internal code generation failures, so
+    /// the IDE can show where inside the encoder the failure originated instead of
+    /// reporting only a generic line 1, column 1 error.
+    /// </remarks>
+    /// <param name="ex">Exception thrown during the code generation phase.</param>
+    /// <returns>
+    /// A formatted diagnostic suffix containing the encoder method and optional
+    /// C# source line, or an empty string when no MiniGoEncoder frame is found.
+    /// </returns>
+    private string GetExceptionLocation(Exception ex)
+    {
+        var trace = new System.Diagnostics.StackTrace(ex, true);
+
+        for (int i = 0; i < trace.FrameCount; i++)
+        {
+            var frame = trace.GetFrame(i);
+            var method = frame?.GetMethod();
+
+            if (method == null)
+                continue;
+
+            string className = method.DeclaringType?.Name ?? "";
+            string methodName = method.Name;
+
+            if (className.Contains("MiniGoEncoder"))
+            {
+                int line = frame?.GetFileLineNumber() ?? 0;
+
+                if (line > 0)
+                    return $" | Encoder: {methodName} line {line}";
+
+                return $" | Encoder: {methodName}";
+            }
+        }
+
+        return "";
     }
 }

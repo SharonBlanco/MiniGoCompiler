@@ -468,7 +468,15 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
             {
                 LLVMValueRef global;
                 fixed (byte* p = S(name)) global = AddGlobal(module, type, (sbyte*)p);
-                SetInitializer(global, ConstNull(type));
+
+                LLVMValueRef initialValue = values.ElementAt(i);
+
+                // Para este proyecto, esto cubre literales simples globales:
+                // var x int = 5;
+                // var y float64 = 2.5;
+                // var b bool = true;
+                SetInitializer(global, initialValue);
+
                 referenceTable[name] = global;
                 typeTable[name] = type;
                 continue;
@@ -515,7 +523,7 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
             {
                 LLVMValueRef global;
                 fixed (byte* p = S(name)) global = AddGlobal(module, type, (sbyte*)p);
-                SetInitializer(global, ConstNull(type));
+                SetInitializer(global, values.ElementAt(i));
                 referenceTable[name] = global;
                 typeTable[name] = type;
                 continue;
@@ -933,30 +941,8 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
 
     public unsafe override object VisitIndexPrimaryExpr(MiniGoCompilerParser.IndexPrimaryExprContext context)
     {
-        string name = context.primaryExpression().GetText();
-        if (!referenceTable.ContainsKey(name))
-            throw new NotSupportedException(
-                "Chained indexing is not supported: '"+ name + "'. " +
-                "Indexing is only supported on direct identifiers.");
-        LLVMValueRef arrayPtr = referenceTable[name];
-        LLVMTypeRef arrayType = typeTable[name];
-
-        // Get the index value
-        LLVMValueRef index = (LLVMValueRef) Visit(context.index().expression());
-
-        // GEP (Get Element Pointer) to access the element
-        LLVMValueRef[] indices = { ConstInt(intType, 0, 0), index };
-        LLVMValueRef elementPtr;
-        fixed (LLVMValueRef* idxPtr = indices)
-        fixed (byte* p = S("elemptr"))
-        {
-            elementPtr = BuildGEP2(builder, arrayType, arrayPtr, (LLVMOpaqueValue**)idxPtr, 2, (sbyte*)p);
-        }
-
-        // Get the element type from the array type
-        LLVMTypeRef elemType = GetElementType(arrayType);
-        LLVMValueRef loaded = LoadVar(elemType, elementPtr, "elem");
-        return loaded;
+        LLVMValueRef elementPtr = GetArrayElementPointer(context, out LLVMTypeRef elementType);
+        return LoadVar(elementType, elementPtr, "array_elem_load");
     }
 
     public unsafe override object VisitSelectorPrimaryExpr(MiniGoCompilerParser.SelectorPrimaryExprContext ctx)
@@ -1260,7 +1246,15 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
 
     public override object VisitBlock(MiniGoCompilerParser.BlockContext context)
     {
-        return Visit(context.statementList());
+        var savedRefs = new Dictionary<string, LLVMValueRef>(referenceTable);
+        var savedTypes = new Dictionary<string, LLVMTypeRef>(typeTable);
+
+        Visit(context.statementList());
+
+        referenceTable = savedRefs;
+        typeTable = savedTypes;
+
+        return null;
     }
 
     public unsafe override object VisitPrintStatement(MiniGoCompilerParser.PrintStatementContext context)
@@ -1402,16 +1396,18 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
 
     public unsafe override object VisitBreakStatement(MiniGoCompilerParser.BreakStatementContext context)
     {
-        if (breakTargets.Count > 0)
+        /*if (breakTargets.Count > 0)
             BuildBr(builder, breakTargets.Peek());
-        return null;
+        return null;*/
+        throw new Exception("break is recognized by MiniGo syntax but is not supported in LLVM code generation");
     }
 
     public unsafe override object VisitContinueStatement(MiniGoCompilerParser.ContinueStatementContext context)
     {
-        if (continueTargets.Count > 0)
+        /*if (continueTargets.Count > 0)
             BuildBr(builder, continueTargets.Peek());
-        return null;
+        return null;*/
+        throw new Exception("continue is recognized by MiniGo syntax but is not supported in LLVM code generation");
     }
 
     public override object VisitSimpleStmtStatement(MiniGoCompilerParser.SimpleStmtStatementContext context)
@@ -1500,6 +1496,81 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
         return null;
     }
 
+    private unsafe LLVMValueRef GetArrayElementPointer(
+    MiniGoCompilerParser.IndexPrimaryExprContext context,
+    out LLVMTypeRef elementType)
+{
+    string arrayName = context.primaryExpression().GetText();
+
+    if (!referenceTable.ContainsKey(arrayName))
+    {
+        throw new Exception("Undefined array variable: " + arrayName);
+    }
+
+    LLVMValueRef arrayPtr = referenceTable[arrayName];
+    LLVMTypeRef arrayType = typeTable[arrayName];
+
+    if (arrayType.Kind != LLVMTypeKind.LLVMArrayTypeKind)
+    {
+        throw new Exception("Indexing is only implemented for arrays in code generation: " + arrayName);
+    }
+
+    LLVMValueRef indexValue = (LLVMValueRef)Visit(context.index().expression());
+
+    LLVMValueRef zero = ConstInt(intType, 0, 0);
+    LLVMValueRef[] indices = { zero, indexValue };
+
+    LLVMValueRef elementPtr;
+
+    fixed (LLVMValueRef* idxPtr = indices)
+    fixed (byte* p = S("array_elem_ptr"))
+    {
+        elementPtr = BuildGEP2(
+            builder,
+            arrayType,
+            arrayPtr,
+            (LLVMOpaqueValue**)idxPtr,
+            2,
+            (sbyte*)p
+        );
+    }
+
+    elementType = GetElementType(arrayType);
+    return elementPtr;
+}
+
+private unsafe LLVMValueRef GetLValuePointer(
+    MiniGoCompilerParser.ExpressionContext expr,
+    out LLVMTypeRef valueType)
+{
+    if (expr is MiniGoCompilerParser.PrimaryExprContext primaryExpr)
+    {
+        var primary = primaryExpr.primaryExpression();
+
+        // Caso normal: x = valor;
+        if (primary is MiniGoCompilerParser.OperandPrimaryExprContext operandPrimary &&
+            operandPrimary.operand() is MiniGoCompilerParser.IdOperandContext idOperand)
+        {
+            string name = idOperand.identifier().GetText();
+
+            if (!referenceTable.ContainsKey(name))
+            {
+                throw new Exception("Undefined variable: " + name);
+            }
+
+            valueType = typeTable[name];
+            return referenceTable[name];
+        }
+
+        // Caso array: datos[i] = valor;
+        if (primary is MiniGoCompilerParser.IndexPrimaryExprContext indexPrimary)
+        {
+            return GetArrayElementPointer(indexPrimary, out valueType);
+        }
+    }
+
+    throw new Exception("Invalid assignment target: " + expr.GetText());
+}
     public unsafe override object VisitEqualAssignment(MiniGoCompilerParser.EqualAssignmentContext context)
     {
         LinkedList<LLVMValueRef> values = (LinkedList<LLVMValueRef>) Visit(context.expressionList(1));
@@ -1507,19 +1578,18 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
 
         for (int i = 0; i < leftExprs.Length; i++)
         {
-            string name = leftExprs[i].GetText();
-            LLVMValueRef ptr = referenceTable[name];
-            BuildStore(builder, values.ElementAt(i), ptr);
+            LLVMValueRef ptr = GetLValuePointer(leftExprs[i], out LLVMTypeRef targetType);
+            LLVMValueRef value = values.ElementAt(i);
+
+            BuildStore(builder, value, ptr);
         }
         return null;
     }
     private unsafe void CompoundAssign(MiniGoCompilerParser.ExpressionContext leftCtx,
     MiniGoCompilerParser.ExpressionContext rightCtx, string op)
 {
-    string name = leftCtx.GetText();
-    LLVMValueRef ptr = referenceTable[name];
-    LLVMTypeRef type = typeTable[name];
-    LLVMValueRef left = LoadVar(type, ptr, name + "_val");
+    LLVMValueRef ptr = GetLValuePointer(leftCtx, out LLVMTypeRef type);
+    LLVMValueRef left = LoadVar(type, ptr, "compound_left");
     LLVMValueRef right = (LLVMValueRef) Visit(rightCtx);
     LLVMValueRef result;
     bool isFloat = type == floatType;
@@ -1609,10 +1679,8 @@ public unsafe override object VisitTypedVarDecl(MiniGoCompilerParser.TypedVarDec
 
     public unsafe override object VisitAndHatAssignment(MiniGoCompilerParser.AndHatAssignmentContext context)
     {
-        string name = context.expression(0).GetText();
-        LLVMValueRef ptr = referenceTable[name];
-        LLVMTypeRef type = typeTable[name];
-        LLVMValueRef left = LoadVar(type, ptr, name + "_val");
+        LLVMValueRef ptr = GetLValuePointer(context.expression(0), out LLVMTypeRef type);
+        LLVMValueRef left = LoadVar(type, ptr, "andhat_left");
         LLVMValueRef right = (LLVMValueRef) Visit(context.expression(1));
         LLVMValueRef notRight, result;
         
