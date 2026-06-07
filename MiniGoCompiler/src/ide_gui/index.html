@@ -477,10 +477,11 @@
         <span>Compiler IDE</span>
     </div>
     <div class="header-actions">
-        <button class="btn btn-sample" onclick="loadSample()">
+        <button class="btn btn-sample" onclick="openFilePicker()">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Ejemplo
+            Archivo
         </button>
+        <input type="file" id="fileInput" accept=".go,.mg,.minigo,.txt" style="display:none" onchange="loadFileFromDisk(event)">
         <button class="btn btn-clear" onclick="clearEditor()">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
             Limpiar
@@ -919,22 +920,41 @@
         document.getElementById('bottomPanel').classList.remove('visible');
     }
 
-    function loadSample() {
-        editor.setValue(
-            'package main;\n' +
-            '\n' +
-            'var x int = 10;\n' +
-            'var y int = 20;\n' +
-            '\n' +
-            'func suma(a int, b int) int {\n' +
-            '    return a + b;\n' +
-            '};\n' +
-            '\n' +
-            'func main() {\n' +
-            '    var resultado int = suma(x, y);\n' +
-            '    println(resultado);\n' +
-            '};\n'
-        );
+    function openFilePicker() {
+        var input = document.getElementById('fileInput');
+        if (!input) return;
+        input.value = '';
+        input.click();
+    }
+
+    function loadFileFromDisk(event) {
+        var file = event.target.files && event.target.files[0];
+        if (!file || !editor) return;
+
+        var reader = new FileReader();
+
+        reader.onload = function (e) {
+            var text = e.target.result || '';
+            editor.setValue(text);
+            document.getElementById('tabDot').classList.add('dirty');
+            document.getElementById('statusDot').className = 'status-dot ready';
+            document.getElementById('statusText').textContent = 'Archivo cargado: ' + file.name;
+            monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
+        };
+
+        reader.onerror = function () {
+            showResults({
+                success: false,
+                errors: [{
+                    message: 'No se pudo leer el archivo seleccionado.',
+                    line: 1,
+                    column: 1,
+                    length: 1
+                }]
+            });
+        };
+
+        reader.readAsText(file);
     }
 
 
