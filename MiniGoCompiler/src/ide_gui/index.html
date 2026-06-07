@@ -38,7 +38,7 @@
                 "ir": "<LLVM IR text>" }
 -->
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -575,7 +575,7 @@
         <div class="bottom-panel" id="bottomPanel">
             <div class="bottom-tabs">
                 <button class="bottom-tab active" id="tabOutput" onclick="switchBottomTab('output')">
-                    ▶ Salida del Programa
+                    ▶ Program Output
                 </button>
                 <button class="bottom-tab" id="tabIR" onclick="switchBottomTab('ir')">
                     { } LLVM IR
@@ -611,7 +611,7 @@
 <div class="status-bar">
     <div class="status-left">
         <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Listo</span>
+        <span id="statusText">Ready</span>
     </div>
     <div class="status-right">
         <span id="cursorPos">Ln 1, Col 1</span>
@@ -775,9 +775,9 @@
         btn.classList.add('compiling');
         cancelBtn.classList.add('visible');
 
-        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Compilando...';
+        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Compiling...';
         statusDot.className = 'status-dot checking';
-        statusText.textContent = 'Verificando...';
+        statusText.textContent = 'Checking...';
 
         const code = editor.getValue();
 
@@ -796,7 +796,7 @@
                 showResults({
                     success: false,
                     errors: [{
-                        message: 'Compilación cancelada por el usuario.',
+                        message: 'Compilation cancelled by user.',
                         line: 1,
                         column: 1,
                         length: 1
@@ -806,7 +806,7 @@
                 showResults({
                     success: false,
                     errors: [{
-                        message: 'No se puede conectar con el servidor del compilador. ¿Está corriendo?',
+                        message: 'Cannot connect to the compiler server. Is it running?',
                         line: 1,
                         column: 1,
                         length: 1
@@ -836,7 +836,7 @@
         const statusText = document.getElementById('statusText');
 
         statusDot.className = 'status-dot error';
-        statusText.textContent = 'Compilación cancelada';
+        statusText.textContent = 'Compilation cancelled';
     }
 
 
@@ -854,7 +854,7 @@
             badge.className      = 'badge success';
             badge.textContent    = '✓';
             statusDot.className  = 'status-dot ready';
-            statusText.textContent = 'Compilación exitosa';
+            statusText.textContent = 'Compilation successful';
 
             content.innerHTML = `
                     <div class="success-message">
@@ -870,14 +870,14 @@
             badge.className      = 'badge errors';
             badge.textContent    = errorCount;
             statusDot.className  = 'status-dot error';
-            statusText.textContent = errorCount + ' error' + (errorCount > 1 ? 'es' : '') + ' encontrado' + (errorCount > 1 ? 's' : '');
+            statusText.textContent = errorCount + ' error' + (errorCount > 1 ? 's' : '') + ' found';
 
             content.innerHTML = result.errors.map(function (err) {
                 return '<div class="error-item error" onclick="goToError(' + (err.line || 1) + ', ' + (err.column || 1) + ')">' +
                     '<div class="error-icon err">✕</div>' +
                     '<div>' +
                     '<div class="error-msg">' + escapeHtml(err.message) + '</div>' +
-                    '<div class="error-location">Línea ' + (err.line || '?') + ', Columna ' + (err.column || '?') + '</div>' +
+                    '<div class="error-location">Line ' + (err.line || '?') + ', Column ' + (err.column || '?') + '</div>' +
                     '</div>' +
                     '</div>';
             }).join('');
@@ -903,7 +903,7 @@
         if (result.success && (result.output || result.ir)) {
             bottomPanel.classList.add('visible');
             resizeHandleV.classList.add('visible');
-            programOutput.textContent = result.output || '(el programa no produjo salida)';
+            programOutput.textContent = result.output || '(program produced no output)';
             programOutput.className   = 'bottom-content success';
             llvmIR.textContent        = result.ir || '';
             llvmIR.className          = 'bottom-content';
@@ -911,7 +911,7 @@
         } else if (result.ir) {
             bottomPanel.classList.add('visible');
             resizeHandleV.classList.add('visible');
-            programOutput.textContent = result.output || '(error durante la ejecución)';
+            programOutput.textContent = result.output || '(error during execution)';
             programOutput.className   = 'bottom-content error-output';
             llvmIR.textContent        = result.ir;
             llvmIR.className          = 'bottom-content';
