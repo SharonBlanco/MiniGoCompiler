@@ -19,7 +19,7 @@ class Program
             exitEvent.Set();
         };
 
-        Console.WriteLine("Servidor corriendo. Presiona Ctrl+C para salir...");
+        Console.WriteLine("Server running. Press Ctrl+C to exit...");
         exitEvent.Wait();
     }
 
@@ -30,6 +30,7 @@ class Program
             if (OperatingSystem.IsWindows())
             {
                 Process.Start(new ProcessStartInfo
+                    
                 {
                     FileName = url,
                     UseShellExecute = true
@@ -45,13 +46,13 @@ class Program
             }
             else
             {
-                Console.WriteLine($"Abre manualmente: {url}");
+                Console.WriteLine($"Open manually: {url}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"No se pudo abrir el navegador automáticamente: {ex.Message}");
-            Console.WriteLine($"Abre manualmente: {url}");
+            Console.WriteLine($"Could not open the browser automatically: {ex.Message}");
+            Console.WriteLine($"Open manually: {url}");
         }
     }
 }

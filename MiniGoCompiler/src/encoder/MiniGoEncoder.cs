@@ -103,7 +103,7 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
 
     /// <summary>Accumulated code generation errors with source location information.</summary>
     public List<string> CodeGenErrors { get; } = new List<string>();
-    
+
     /// <summary>
     /// Maps slice LLVM struct types to their element type.
     /// Slices are represented as { T*, i32 len, i32 cap }, but LLVM opaque pointers
@@ -179,7 +179,7 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
 
         if (!this.module.TryVerify(LLVMVerifierFailureAction.LLVMPrintMessageAction, out string verifyMsg))
         {
-            this.ErrorMessage = "Módulo LLVM inválido: " + verifyMsg;
+            this.ErrorMessage = "Invalid LLVM module: " + verifyMsg;
             Cleanup();
             return null;
         }
@@ -285,7 +285,7 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
 
             if (linker.ExitCode != 0)
             {
-                this.ErrorMessage = "El enlazado falló (código " + linker.ExitCode + "): " + stderr;
+                this.ErrorMessage = "Linking failed (code " + linker.ExitCode + "): " + stderr;
                 return false;
             }
 
@@ -293,90 +293,90 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
         }
         catch (Exception e)
         {
-            this.ErrorMessage = "No se pudo ejecutar clang: " + e.Message;
+            this.ErrorMessage = "Clang could not be executed: " + e.Message;
             return false;
         }
     }
 
 
     /// <summary>
-/// Executes the linked binary and captures its standard output into
-/// <see cref="ProgramOutput"/>. If the generated program does not finish
-/// within the configured timeout, the process is killed to prevent the IDE
-/// from hanging on infinite loops.
-/// </summary>
-/// <param name="exeFile">Path to the executable to run.</param>
-/// <param name="isWindows">Whether the host OS is Windows.</param>
-/// <param name="inFlatpak">Whether the process is running inside a Flatpak sandbox.</param>
-private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
-{
-    string program;
-    string args;
-
-    if (!isWindows && inFlatpak)
+    /// Executes the linked binary and captures its standard output into
+    /// <see cref="ProgramOutput"/>. If the generated program does not finish
+    /// within the configured timeout, the process is killed to prevent the IDE
+    /// from hanging on infinite loops.
+    /// </summary>
+    /// <param name="exeFile">Path to the executable to run.</param>
+    /// <param name="isWindows">Whether the host OS is Windows.</param>
+    /// <param name="inFlatpak">Whether the process is running inside a Flatpak sandbox.</param>
+    private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
     {
-        program = "flatpak-spawn";
-        args = "--host ./" + exeFile;
-    }
-    else
-    {
-        program = isWindows ? exeFile : "./" + exeFile;
-        args = "";
-    }
+        string program;
+        string args;
 
-    try
-    {
-        using Process run = new Process();
-
-        run.StartInfo.FileName = program;
-        run.StartInfo.Arguments = args;
-        run.StartInfo.UseShellExecute = false;
-        run.StartInfo.RedirectStandardOutput = true;
-        run.StartInfo.RedirectStandardError = true;
-
-        run.Start();
-        
-        bool finished = run.WaitForExit(10000);
-
-        if (!finished)
+        if (!isWindows && inFlatpak)
         {
-            try
-            {
-                run.Kill(entireProcessTree: true);
-            }
-            catch
-            {
-            }
-
-            this.ProgramOutput = "";
-            this.ErrorMessage = "Execution timeout: the generated program did not finish within 10 seconds.";
-            this.CompilationSuccess = false;
-            return;
-        }
-
-        this.ProgramOutput = run.StandardOutput.ReadToEnd();
-        string stderr = run.StandardError.ReadToEnd();
-
-        if (run.ExitCode == 0)
-        {
-            this.CompilationSuccess = true;
+            program = "flatpak-spawn";
+            args = "--host ./" + exeFile;
         }
         else
         {
-            this.ErrorMessage = "El programa terminó con código " + run.ExitCode;
+            program = isWindows ? exeFile : "./" + exeFile;
+            args = "";
+        }
 
-            if (!string.IsNullOrEmpty(stderr))
-                this.ErrorMessage += ": " + stderr;
+        try
+        {
+            using Process run = new Process();
 
+            run.StartInfo.FileName = program;
+            run.StartInfo.Arguments = args;
+            run.StartInfo.UseShellExecute = false;
+            run.StartInfo.RedirectStandardOutput = true;
+            run.StartInfo.RedirectStandardError = true;
+
+            run.Start();
+
+            bool finished = run.WaitForExit(10000);
+
+            if (!finished)
+            {
+                try
+                {
+                    run.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                }
+
+                this.ProgramOutput = "";
+                this.ErrorMessage = "Execution timeout: the generated program did not finish within 10 seconds.";
+                this.CompilationSuccess = false;
+                return;
+            }
+
+            this.ProgramOutput = run.StandardOutput.ReadToEnd();
+            string stderr = run.StandardError.ReadToEnd();
+
+            if (run.ExitCode == 0)
+            {
+                this.CompilationSuccess = true;
+            }
+            else
+            {
+                this.ErrorMessage = "Program exited with code " + run.ExitCode;
+
+                if (!string.IsNullOrEmpty(stderr))
+                    this.ErrorMessage += ": " + stderr;
+
+                this.CompilationSuccess = false;
+            }
+        }
+        catch (Exception e)
+        {
+            this.ErrorMessage = "No se pudo ejecutar el programa: " + e.Message;
             this.CompilationSuccess = false;
         }
     }
-    catch (Exception e)
-    {
-        this.ErrorMessage = "No se pudo ejecutar el programa: " + e.Message;
-        this.CompilationSuccess = false;
-    }
-}
 
 
     /// <summary>
@@ -488,7 +488,6 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
     /// </summary>
     public override object VisitInnerVarDecls(MiniGoCompilerParser.InnerVarDeclsContext context)
     {
-
         foreach (MiniGoCompilerParser.SingleVarDeclContext svd in context.singleVarDecl())
         {
             Visit(svd);
@@ -892,7 +891,6 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
     /// </summary>
     public override object VisitTypeDecl(MiniGoCompilerParser.TypeDeclContext context)
     {
-
         if (context.singleTypeDecl() != null)
             Visit(context.singleTypeDecl());
         if (context.innerTypeDecls() != null)
@@ -935,7 +933,6 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
     /// </summary>
     public unsafe override object VisitFuncDecl(MiniGoCompilerParser.FuncDeclContext context)
     {
-
         var front = context.funcFrontDecl();
         string funcName = front.IDENTIFIER().GetText();
         var savedRefs = new Dictionary<(ParserRuleContext, string), LLVMValueRef>(referenceTable);
@@ -1276,7 +1273,6 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
     /// </summary>
     public unsafe override object VisitUnaryHatExpr(MiniGoCompilerParser.UnaryHatExprContext context)
     {
-
         LLVMValueRef val = (LLVMValueRef)Visit(context.expression());
         LLVMValueRef result;
         fixed (byte* p = S("xortmp")) result = BuildNot(builder, val, (sbyte*)p);
@@ -1651,7 +1647,6 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
     /// </summary>
     public unsafe override object VisitAppendExpression(MiniGoCompilerParser.AppendExpressionContext context)
     {
-
         LLVMValueRef sliceVal = (LLVMValueRef)Visit(context.expression(0));
         LLVMValueRef newElement = (LLVMValueRef)Visit(context.expression(1));
         LLVMTypeRef elemType = TypeOf(newElement);
@@ -1738,7 +1733,6 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
     /// </summary>
     public unsafe override object VisitLengthExpression(MiniGoCompilerParser.LengthExpressionContext context)
     {
-
         LLVMValueRef val = (LLVMValueRef)Visit(context.expression());
         LLVMTypeRef valType = TypeOf(val);
 
@@ -1805,34 +1799,34 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
     /// terminator instruction (return, break) has already been emitted.
     /// </summary>
     public unsafe override object VisitStatementList(MiniGoCompilerParser.StatementListContext context)
-{
-    foreach (var stmt in context.statement())
     {
-        if (CodeGenErrors.Count > 0)
-            break;
-
-        LLVMBasicBlockRef currentBlock = GetInsertBlock(builder);
-
-        if (GetBasicBlockTerminator(currentBlock) != null)
-            break;
-
-        try
+        foreach (var stmt in context.statement())
         {
-            Visit(stmt);
-        }
-        catch (Exception ex)
-        {
-            CodeGenErrors.Add(
-                "CODE GEN: " + ex.Message +
-                " [line " + stmt.Start.Line + ", col " + stmt.Start.Column + "]"
-            );
+            if (CodeGenErrors.Count > 0)
+                break;
 
-            break;
+            LLVMBasicBlockRef currentBlock = GetInsertBlock(builder);
+
+            if (GetBasicBlockTerminator(currentBlock) != null)
+                break;
+
+            try
+            {
+                Visit(stmt);
+            }
+            catch (Exception ex)
+            {
+                CodeGenErrors.Add(
+                    "CODE GEN: " + ex.Message +
+                    " [line " + stmt.Start.Line + ", col " + stmt.Start.Column + "]"
+                );
+
+                break;
+            }
         }
+
+        return null;
     }
-
-    return null;
-}
 
     /// <summary>
     /// Visits a block statement, saving and restoring the reference and type
@@ -1907,7 +1901,6 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
         }
 
         return null;
-
     }
 
     /// <summary>
@@ -2000,6 +1993,7 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
 
         return null;
     }
+
     /// <summary>
     /// Records a code generation error with source location information extracted
     /// from the given parser rule context.
@@ -2102,7 +2096,6 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
     public unsafe override object VisitExpressionSimpleStatement(
         MiniGoCompilerParser.ExpressionSimpleStatementContext context)
     {
-
         LLVMValueRef val = (LLVMValueRef)Visit(context.expression());
 
         if (context.INC() != null || context.DEC() != null)
@@ -2173,156 +2166,156 @@ private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
 
 
     /// <summary>
-/// Computes a pointer to an indexed element. Supports:
-/// - fixed-size arrays: [N]T
-/// - slices: []T represented as { T*, i32 len, i32 cap }
-/// - strings: i8* indexed as rune/byte values
-/// </summary>
-/// <param name="context">Index expression context.</param>
-/// <param name="elementType">Resolved LLVM element type.</param>
-/// <param name="isWriteTarget">
-/// True when the indexed expression is used as an assignment target.
-/// String indexing is read-only, so writing into a string is rejected.
-/// </param>
-private unsafe LLVMValueRef GetIndexedElementPointer(
-    MiniGoCompilerParser.IndexPrimaryExprContext context,
-    out LLVMTypeRef elementType,
-    bool isWriteTarget)
-{
-    var baseId = ExtractIdentifier(
-        context.primaryExpression(),
-        "Base of '[...]' must be a simple identifier"
-    );
-
-    string baseName = baseId.IDENTIFIER().GetText();
-    LLVMValueRef basePtr = ResolveIdentifier(baseId, out LLVMTypeRef baseType);
-
-    LLVMValueRef indexValue = (LLVMValueRef)Visit(context.index().expression());
-
-    // ------------------------------------------------------------
-    // Case 1: fixed-size array
-    // Example:
-    //   var arr [3]int;
-    //   arr[0] = 10;
-    // ------------------------------------------------------------
-    if (baseType.Kind == LLVMTypeKind.LLVMArrayTypeKind)
+    /// Computes a pointer to an indexed element. Supports:
+    /// - fixed-size arrays: [N]T
+    /// - slices: []T represented as { T*, i32 len, i32 cap }
+    /// - strings: i8* indexed as rune/byte values
+    /// </summary>
+    /// <param name="context">Index expression context.</param>
+    /// <param name="elementType">Resolved LLVM element type.</param>
+    /// <param name="isWriteTarget">
+    /// True when the indexed expression is used as an assignment target.
+    /// String indexing is read-only, so writing into a string is rejected.
+    /// </param>
+    private unsafe LLVMValueRef GetIndexedElementPointer(
+        MiniGoCompilerParser.IndexPrimaryExprContext context,
+        out LLVMTypeRef elementType,
+        bool isWriteTarget)
     {
-        LLVMValueRef zero = ConstInt(intType, 0, 0);
-        LLVMValueRef[] indices = { zero, indexValue };
+        var baseId = ExtractIdentifier(
+            context.primaryExpression(),
+            "Base of '[...]' must be a simple identifier"
+        );
 
-        LLVMValueRef elementPtr;
+        string baseName = baseId.IDENTIFIER().GetText();
+        LLVMValueRef basePtr = ResolveIdentifier(baseId, out LLVMTypeRef baseType);
 
-        fixed (LLVMValueRef* idxPtr = indices)
-        fixed (byte* p = S("array_elem_ptr"))
+        LLVMValueRef indexValue = (LLVMValueRef)Visit(context.index().expression());
+
+        // ------------------------------------------------------------
+        // Case 1: fixed-size array
+        // Example:
+        //   var arr [3]int;
+        //   arr[0] = 10;
+        // ------------------------------------------------------------
+        if (baseType.Kind == LLVMTypeKind.LLVMArrayTypeKind)
         {
-            elementPtr = BuildGEP2(
-                builder,
-                baseType,
-                basePtr,
-                (LLVMOpaqueValue**)idxPtr,
-                2,
-                (sbyte*)p
-            );
+            LLVMValueRef zero = ConstInt(intType, 0, 0);
+            LLVMValueRef[] indices = { zero, indexValue };
+
+            LLVMValueRef elementPtr;
+
+            fixed (LLVMValueRef* idxPtr = indices)
+            fixed (byte* p = S("array_elem_ptr"))
+            {
+                elementPtr = BuildGEP2(
+                    builder,
+                    baseType,
+                    basePtr,
+                    (LLVMOpaqueValue**)idxPtr,
+                    2,
+                    (sbyte*)p
+                );
+            }
+
+            elementType = GetElementType(baseType);
+            return elementPtr;
         }
 
-        elementType = GetElementType(baseType);
-        return elementPtr;
+        // ------------------------------------------------------------
+        // Case 2: slice
+        //
+        // Slice representation:
+        //   { T*, i32 len, i32 cap }
+        //
+        // To access sl[i]:
+        //   1. load the slice struct
+        //   2. extract field 0: data pointer
+        //   3. GEP over the data pointer
+        // ------------------------------------------------------------
+        if (baseType.Kind == LLVMTypeKind.LLVMStructTypeKind &&
+            sliceElementTypes.ContainsKey(baseType.Handle))
+        {
+            LLVMValueRef sliceValue = LoadVar(baseType, basePtr, "slice_load");
+
+            LLVMValueRef dataPtr;
+            fixed (byte* p = S("slice_data_ptr"))
+            {
+                dataPtr = BuildExtractValue(builder, sliceValue, 0, (sbyte*)p);
+            }
+
+            if (!sliceElementTypes.TryGetValue(baseType.Handle, out elementType))
+            {
+                throw new Exception(
+                    "Internal code generation error: missing element type metadata for slice " + baseName
+                );
+            }
+
+            LLVMValueRef[] indices = { indexValue };
+            LLVMValueRef elementPtr;
+
+            fixed (LLVMValueRef* idxPtr = indices)
+            fixed (byte* p = S("slice_elem_ptr"))
+            {
+                elementPtr = BuildGEP2(
+                    builder,
+                    elementType,
+                    dataPtr,
+                    (LLVMOpaqueValue**)idxPtr,
+                    1,
+                    (sbyte*)p
+                );
+            }
+
+            return elementPtr;
+        }
+
+        // ------------------------------------------------------------
+        // Case 3: string
+        //
+        // A string is represented as i8*.
+        // Indexing returns a rune/byte value.
+        //
+        // Example:
+        //   var s string = "test";
+        //   var ch rune = s[0];
+        // ------------------------------------------------------------
+        if (baseType == stringType)
+        {
+            if (isWriteTarget)
+            {
+                throw new Exception(
+                    "String indexing is read-only in code generation: " + baseName
+                );
+            }
+
+            LLVMValueRef stringPtr = LoadVar(stringType, basePtr, "string_load");
+
+            elementType = runeType;
+
+            LLVMValueRef[] indices = { indexValue };
+            LLVMValueRef charPtr;
+
+            fixed (LLVMValueRef* idxPtr = indices)
+            fixed (byte* p = S("string_char_ptr"))
+            {
+                charPtr = BuildGEP2(
+                    builder,
+                    runeType,
+                    stringPtr,
+                    (LLVMOpaqueValue**)idxPtr,
+                    1,
+                    (sbyte*)p
+                );
+            }
+
+            return charPtr;
+        }
+
+        throw new Exception(
+            "Indexing is only implemented for arrays, slices and strings in code generation: " + baseName
+        );
     }
-
-    // ------------------------------------------------------------
-    // Case 2: slice
-    //
-    // Slice representation:
-    //   { T*, i32 len, i32 cap }
-    //
-    // To access sl[i]:
-    //   1. load the slice struct
-    //   2. extract field 0: data pointer
-    //   3. GEP over the data pointer
-    // ------------------------------------------------------------
-    if (baseType.Kind == LLVMTypeKind.LLVMStructTypeKind &&
-        sliceElementTypes.ContainsKey(baseType.Handle))
-    {
-        LLVMValueRef sliceValue = LoadVar(baseType, basePtr, "slice_load");
-
-        LLVMValueRef dataPtr;
-        fixed (byte* p = S("slice_data_ptr"))
-        {
-            dataPtr = BuildExtractValue(builder, sliceValue, 0, (sbyte*)p);
-        }
-
-        if (!sliceElementTypes.TryGetValue(baseType.Handle, out elementType))
-        {
-            throw new Exception(
-                "Internal code generation error: missing element type metadata for slice " + baseName
-            );
-        }
-
-        LLVMValueRef[] indices = { indexValue };
-        LLVMValueRef elementPtr;
-
-        fixed (LLVMValueRef* idxPtr = indices)
-        fixed (byte* p = S("slice_elem_ptr"))
-        {
-            elementPtr = BuildGEP2(
-                builder,
-                elementType,
-                dataPtr,
-                (LLVMOpaqueValue**)idxPtr,
-                1,
-                (sbyte*)p
-            );
-        }
-
-        return elementPtr;
-    }
-
-    // ------------------------------------------------------------
-    // Case 3: string
-    //
-    // A string is represented as i8*.
-    // Indexing returns a rune/byte value.
-    //
-    // Example:
-    //   var s string = "test";
-    //   var ch rune = s[0];
-    // ------------------------------------------------------------
-    if (baseType == stringType)
-    {
-        if (isWriteTarget)
-        {
-            throw new Exception(
-                "String indexing is read-only in code generation: " + baseName
-            );
-        }
-
-        LLVMValueRef stringPtr = LoadVar(stringType, basePtr, "string_load");
-
-        elementType = runeType;
-
-        LLVMValueRef[] indices = { indexValue };
-        LLVMValueRef charPtr;
-
-        fixed (LLVMValueRef* idxPtr = indices)
-        fixed (byte* p = S("string_char_ptr"))
-        {
-            charPtr = BuildGEP2(
-                builder,
-                runeType,
-                stringPtr,
-                (LLVMOpaqueValue**)idxPtr,
-                1,
-                (sbyte*)p
-            );
-        }
-
-        return charPtr;
-    }
-
-    throw new Exception(
-        "Indexing is only implemented for arrays, slices and strings in code generation: " + baseName
-    );
-}
 
     /// <summary>
     /// Resolves an expression to an assignable l-value pointer. Handles simple
@@ -2381,7 +2374,6 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     }
 
 
-
 // -------------------------------------------------------------------------
     //  Assignment statements
     // -------------------------------------------------------------------------
@@ -2392,7 +2384,7 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// </summary>
     public unsafe override object VisitEqualAssignment(MiniGoCompilerParser.EqualAssignmentContext context)
     {
-        LinkedList<LLVMValueRef> values = (LinkedList<LLVMValueRef>) Visit(context.expressionList(1));
+        LinkedList<LLVMValueRef> values = (LinkedList<LLVMValueRef>)Visit(context.expressionList(1));
         var leftExprs = context.expressionList(0).expression();
 
         for (int i = 0; i < leftExprs.Length; i++)
@@ -2402,6 +2394,7 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
 
             BuildStore(builder, value, ptr);
         }
+
         return null;
     }
 
@@ -2414,105 +2407,132 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// <param name="rightCtx">Right-hand side expression (the operand).</param>
     /// <param name="op">Operator string: <c>+</c>, <c>-</c>, <c>*</c>, <c>/</c>, <c>%</c>, <c>&amp;</c>, <c>|</c>, <c>^</c>, <c>&lt;&lt;</c>, <c>&gt;&gt;</c>.</param>
     private unsafe void CompoundAssign(MiniGoCompilerParser.ExpressionContext leftCtx,
-    MiniGoCompilerParser.ExpressionContext rightCtx, string op)
-{
-    LLVMValueRef ptr = GetLValuePointer(leftCtx, out LLVMTypeRef type);
-    if (type == stringType)
-        throw new Exception("Compound assignment operators are not supported for strings in code generation");
-    LLVMValueRef left = LoadVar(type, ptr, "compound_left");
-    LLVMValueRef right = (LLVMValueRef) Visit(rightCtx);
-    LLVMValueRef result;
-    bool isFloat = type == floatType;
-
-    switch (op)
+        MiniGoCompilerParser.ExpressionContext rightCtx, string op)
     {
-        case "+":
-            if (isFloat) fixed (byte* p = S("addtmp")) result = BuildFAdd(builder, left, right, (sbyte*)p);
-            else fixed (byte* p = S("addtmp")) result = BuildAdd(builder, left, right, (sbyte*)p);
-            break;
-        case "-":
-            if (isFloat) fixed (byte* p = S("subtmp")) result = BuildFSub(builder, left, right, (sbyte*)p);
-            else fixed (byte* p = S("subtmp")) result = BuildSub(builder, left, right, (sbyte*)p);
-            break;
-        case "*":
-            if (isFloat) fixed (byte* p = S("multmp")) result = BuildFMul(builder, left, right, (sbyte*)p);
-            else fixed (byte* p = S("multmp")) result = BuildMul(builder, left, right, (sbyte*)p);
-            break;
-        case "/":
-            if (isFloat) fixed (byte* p = S("divtmp")) result = BuildFDiv(builder, left, right, (sbyte*)p);
-            else fixed (byte* p = S("divtmp")) result = BuildSDiv(builder, left, right, (sbyte*)p);
-            break;
-        case "%":
-            fixed (byte* p = S("modtmp")) result = BuildSRem(builder, left, right, (sbyte*)p);
-            break;
-        case "&":
-            fixed (byte* p = S("andtmp")) result = BuildAnd(builder, left, right, (sbyte*)p);
-            break;
-        case "|":
-            fixed (byte* p = S("ortmp")) result = BuildOr(builder, left, right, (sbyte*)p);
-            break;
-        case "^":
-            fixed (byte* p = S("xortmp")) result = BuildXor(builder, left, right, (sbyte*)p);
-            break;
-        case "<<":
-            fixed (byte* p = S("shltmp")) result = BuildShl(builder, left, right, (sbyte*)p);
-            break;
-        case ">>":
-            fixed (byte* p = S("shrtmp")) result = BuildAShr(builder, left, right, (sbyte*)p);
-            break;
-        default:
-            result = left;
-            break;
+        LLVMValueRef ptr = GetLValuePointer(leftCtx, out LLVMTypeRef type);
+        if (type == stringType)
+            throw new Exception("Compound assignment operators are not supported for strings in code generation");
+        LLVMValueRef left = LoadVar(type, ptr, "compound_left");
+        LLVMValueRef right = (LLVMValueRef)Visit(rightCtx);
+        LLVMValueRef result;
+        bool isFloat = type == floatType;
+
+        switch (op)
+        {
+            case "+":
+                if (isFloat)
+                    fixed (byte* p = S("addtmp"))
+                        result = BuildFAdd(builder, left, right, (sbyte*)p);
+                else
+                    fixed (byte* p = S("addtmp"))
+                        result = BuildAdd(builder, left, right, (sbyte*)p);
+                break;
+            case "-":
+                if (isFloat)
+                    fixed (byte* p = S("subtmp"))
+                        result = BuildFSub(builder, left, right, (sbyte*)p);
+                else
+                    fixed (byte* p = S("subtmp"))
+                        result = BuildSub(builder, left, right, (sbyte*)p);
+                break;
+            case "*":
+                if (isFloat)
+                    fixed (byte* p = S("multmp"))
+                        result = BuildFMul(builder, left, right, (sbyte*)p);
+                else
+                    fixed (byte* p = S("multmp"))
+                        result = BuildMul(builder, left, right, (sbyte*)p);
+                break;
+            case "/":
+                if (isFloat)
+                    fixed (byte* p = S("divtmp"))
+                        result = BuildFDiv(builder, left, right, (sbyte*)p);
+                else
+                    fixed (byte* p = S("divtmp"))
+                        result = BuildSDiv(builder, left, right, (sbyte*)p);
+                break;
+            case "%":
+                fixed (byte* p = S("modtmp")) result = BuildSRem(builder, left, right, (sbyte*)p);
+                break;
+            case "&":
+                fixed (byte* p = S("andtmp")) result = BuildAnd(builder, left, right, (sbyte*)p);
+                break;
+            case "|":
+                fixed (byte* p = S("ortmp")) result = BuildOr(builder, left, right, (sbyte*)p);
+                break;
+            case "^":
+                fixed (byte* p = S("xortmp")) result = BuildXor(builder, left, right, (sbyte*)p);
+                break;
+            case "<<":
+                fixed (byte* p = S("shltmp")) result = BuildShl(builder, left, right, (sbyte*)p);
+                break;
+            case ">>":
+                fixed (byte* p = S("shrtmp")) result = BuildAShr(builder, left, right, (sbyte*)p);
+                break;
+            default:
+                result = left;
+                break;
+        }
+
+        BuildStore(builder, result, ptr);
     }
-    BuildStore(builder, result, ptr);
-}
 
     /// <summary>Emits an addition assignment (<c>+=</c>).</summary>
     public override object VisitAddAssignment(MiniGoCompilerParser.AddAssignmentContext context)
     {
-        CompoundAssign(context.expression(0), context.expression(1), "+"); return null;
+        CompoundAssign(context.expression(0), context.expression(1), "+");
+        return null;
     }
 
     /// <summary>Emits a bitwise AND assignment (<c>&amp;=</c>).</summary>
     public override object VisitAndAssignment(MiniGoCompilerParser.AndAssignmentContext context)
     {
-        CompoundAssign(context.expression(0), context.expression(1), "&"); return null;
+        CompoundAssign(context.expression(0), context.expression(1), "&");
+        return null;
     }
 
     /// <summary>Emits a subtraction assignment (<c>-=</c>).</summary>
     public override object VisitSubAssignment(MiniGoCompilerParser.SubAssignmentContext context)
     {
-        { CompoundAssign(context.expression(0), context.expression(1), "-"); return null; }
+        {
+            CompoundAssign(context.expression(0), context.expression(1), "-");
+            return null;
+        }
     }
 
     /// <summary>Emits a bitwise OR assignment (<c>|=</c>).</summary>
     public override object VisitOrAssignment(MiniGoCompilerParser.OrAssignmentContext context)
     {
-        CompoundAssign(context.expression(0), context.expression(1), "|"); return null;
+        CompoundAssign(context.expression(0), context.expression(1), "|");
+        return null;
     }
 
     /// <summary>Emits a multiplication assignment (<c>*=</c>).</summary>
     public override object VisitMulAssignment(MiniGoCompilerParser.MulAssignmentContext context)
     {
-        CompoundAssign(context.expression(0), context.expression(1), "*"); return null;
+        CompoundAssign(context.expression(0), context.expression(1), "*");
+        return null;
     }
 
     /// <summary>Emits a XOR assignment (<c>^=</c>).</summary>
     public override object VisitHatAssignment(MiniGoCompilerParser.HatAssignmentContext context)
     {
-        CompoundAssign(context.expression(0), context.expression(1), "^"); return null;
+        CompoundAssign(context.expression(0), context.expression(1), "^");
+        return null;
     }
 
     /// <summary>Emits a left shift assignment (<c>&lt;&lt;=</c>).</summary>
     public override object VisitDlessAssignment(MiniGoCompilerParser.DlessAssignmentContext context)
     {
-        CompoundAssign(context.expression(0), context.expression(1), "<<"); return null;
+        CompoundAssign(context.expression(0), context.expression(1), "<<");
+        return null;
     }
 
     /// <summary>Emits a right shift assignment (<c>&gt;&gt;=</c>).</summary>
     public override object VisitDmoreAssignment(MiniGoCompilerParser.DmoreAssignmentContext context)
     {
-        CompoundAssign(context.expression(0), context.expression(1), ">>"); return null;
+        CompoundAssign(context.expression(0), context.expression(1), ">>");
+        return null;
     }
 
     /// <summary>
@@ -2523,7 +2543,7 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     {
         LLVMValueRef ptr = GetLValuePointer(context.expression(0), out LLVMTypeRef type);
         LLVMValueRef left = LoadVar(type, ptr, "andhat_left");
-        LLVMValueRef right = (LLVMValueRef) Visit(context.expression(1));
+        LLVMValueRef right = (LLVMValueRef)Visit(context.expression(1));
         LLVMValueRef notRight, result;
 
         fixed (byte* p = S("nottmp")) notRight = BuildNot(builder, right, (sbyte*)p);
@@ -2536,13 +2556,15 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// <summary>Emits a modulo assignment (<c>%=</c>).</summary>
     public override object VisitModAssignment(MiniGoCompilerParser.ModAssignmentContext context)
     {
-        CompoundAssign(context.expression(0), context.expression(1), "%"); return null;
+        CompoundAssign(context.expression(0), context.expression(1), "%");
+        return null;
     }
 
     /// <summary>Emits a division assignment (<c>/=</c>).</summary>
     public override object VisitDivAssignment(MiniGoCompilerParser.DivAssignmentContext context)
     {
-        CompoundAssign(context.expression(0), context.expression(1), "/"); return null;
+        CompoundAssign(context.expression(0), context.expression(1), "/");
+        return null;
     }
 
 
@@ -2556,12 +2578,12 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// </summary>
     public unsafe override object VisitNormalIfStatement(MiniGoCompilerParser.NormalIfStatementContext context)
     {
-        LLVMValueRef condition = (LLVMValueRef) Visit(context.expression());
+        LLVMValueRef condition = (LLVMValueRef)Visit(context.expression());
         LLVMBasicBlockRef blockThen;
         LLVMBasicBlockRef blockMerge;
         fixed (byte* p = S("then")) blockThen = AppendBasicBlock(this.currentFunc, (sbyte*)p);
         fixed (byte* p = S("merge")) blockMerge = AppendBasicBlock(this.currentFunc, (sbyte*)p);
-        BuildCondBr(builder,  condition, blockThen, blockMerge);
+        BuildCondBr(builder, condition, blockThen, blockMerge);
         PositionBuilderAtEnd(this.builder, blockThen);
         Visit(context.block());
         if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
@@ -2578,7 +2600,7 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// </summary>
     public unsafe override object VisitElseIfStatement(MiniGoCompilerParser.ElseIfStatementContext context)
     {
-        LLVMValueRef cond = (LLVMValueRef) Visit(context.expression());
+        LLVMValueRef cond = (LLVMValueRef)Visit(context.expression());
         LLVMBasicBlockRef blockElse;
         LLVMBasicBlockRef blockMerge;
         LLVMBasicBlockRef blockThen;
@@ -2610,7 +2632,7 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
         LLVMBasicBlockRef thenBlock;
         LLVMBasicBlockRef elseBlock;
         LLVMBasicBlockRef mergeBlock;
-        LLVMValueRef cond = (LLVMValueRef) Visit(context.expression());
+        LLVMValueRef cond = (LLVMValueRef)Visit(context.expression());
         fixed (byte* p = S("then")) thenBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
         fixed (byte* p = S("else")) elseBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
         fixed (byte* p = S("merge")) mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
@@ -2636,13 +2658,14 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// </summary>
     public unsafe override object VisitSimpleIfStatement(MiniGoCompilerParser.SimpleIfStatementContext context)
     {
-
         LLVMBasicBlockRef thenBlock;
         LLVMBasicBlockRef mergeBlock;
         Visit(context.simpleStatement());
-        LLVMValueRef cond = (LLVMValueRef) Visit(context.expression()); fixed (byte* p = S("then"))
-         thenBlock = AppendBasicBlock(currentFunc, (sbyte*)p); fixed (byte* p = S("merge"))
-         mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
+        LLVMValueRef cond = (LLVMValueRef)Visit(context.expression());
+        fixed (byte* p = S("then"))
+            thenBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
+        fixed (byte* p = S("merge"))
+            mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
         BuildCondBr(builder, cond, thenBlock, mergeBlock);
         PositionBuilderAtEnd(builder, thenBlock);
         Visit(context.block());
@@ -2661,7 +2684,7 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
         LLVMBasicBlockRef thenBlock;
         LLVMBasicBlockRef elseBlock;
         LLVMBasicBlockRef mergeBlock;
-        LLVMValueRef cond = (LLVMValueRef) Visit(context.expression());
+        LLVMValueRef cond = (LLVMValueRef)Visit(context.expression());
         fixed (byte* p = S("then")) thenBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
         fixed (byte* p = S("else")) elseBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
         fixed (byte* p = S("merge")) mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
@@ -2680,16 +2703,17 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// Emits an if-else statement preceded by a simple statement initializer
     /// (<c>if stmt; cond { ... } else { ... }</c>).
     /// </summary>
-    public unsafe override object VisitSimpleElseBlockIfStatement(MiniGoCompilerParser.SimpleElseBlockIfStatementContext context)
+    public unsafe override object VisitSimpleElseBlockIfStatement(
+        MiniGoCompilerParser.SimpleElseBlockIfStatementContext context)
     {
         Visit(context.simpleStatement());
         LLVMBasicBlockRef thenBlock;
         LLVMBasicBlockRef elseBlock;
         LLVMBasicBlockRef mergeBlock;
-        LLVMValueRef cond = (LLVMValueRef) Visit(context.expression());
-        fixed (byte* p = S("then")) thenBlock = AppendBasicBlock(currentFunc,  (sbyte*)p);
-        fixed (byte* p = S("else")) elseBlock = AppendBasicBlock(currentFunc,  (sbyte*)p);
-        fixed (byte* p = S("merge")) mergeBlock = AppendBasicBlock(currentFunc,  (sbyte*)p);
+        LLVMValueRef cond = (LLVMValueRef)Visit(context.expression());
+        fixed (byte* p = S("then")) thenBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
+        fixed (byte* p = S("else")) elseBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
+        fixed (byte* p = S("merge")) mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
         BuildCondBr(builder, cond, thenBlock, elseBlock);
         PositionBuilderAtEnd(builder, thenBlock);
         Visit(context.block(0));
@@ -2715,7 +2739,7 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
         LLVMBasicBlockRef bodyBlock;
         LLVMBasicBlockRef mergeBlock;
         fixed (byte* p = S("forBody")) bodyBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
-        fixed (byte* p = S("forMerge")) mergeBlock = AppendBasicBlock(currentFunc,(sbyte*)p);
+        fixed (byte* p = S("forMerge")) mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
 
         BuildBr(builder, bodyBlock);
         PositionBuilderAtEnd(builder, bodyBlock);
@@ -2743,7 +2767,7 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
 
         BuildBr(builder, condBlock);
         PositionBuilderAtEnd(builder, condBlock);
-        LLVMValueRef cond = (LLVMValueRef) Visit(context.expression());
+        LLVMValueRef cond = (LLVMValueRef)Visit(context.expression());
         BuildCondBr(builder, cond, bodyBlock, mergeBlock);
 
         PositionBuilderAtEnd(builder, bodyBlock);
@@ -2761,7 +2785,6 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// </summary>
     public unsafe override object VisitCompleteForLoop(MiniGoCompilerParser.CompleteForLoopContext context)
     {
-
         Visit(context.simpleStatement(0));
         LLVMBasicBlockRef condBlock;
         LLVMBasicBlockRef bodyBlock;
@@ -2775,7 +2798,7 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
 
         BuildBr(builder, condBlock);
         PositionBuilderAtEnd(builder, condBlock);
-        LLVMValueRef cond = (LLVMValueRef) Visit(context.expression());
+        LLVMValueRef cond = (LLVMValueRef)Visit(context.expression());
         BuildCondBr(builder, cond, bodyBlock, mergeBlock);
 
         PositionBuilderAtEnd(builder, bodyBlock);
@@ -2830,68 +2853,79 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// (<c>switch stmt; expr { ... }</c>). Builds a chain of comparison blocks
     /// for each case clause and a merge block for fall-through.
     /// </summary>
-    public unsafe override object VisitSimpleExpressionSwitch(MiniGoCompilerParser.SimpleExpressionSwitchContext context)
-    { Visit(context.simpleStatement());
-    LLVMValueRef switchVal = (LLVMValueRef) Visit(context.expression());
-    LLVMBasicBlockRef mergeBlock;
-    fixed (byte* p = S("switchMerge")) mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
-    breakTargets.Push(mergeBlock);
-
-    var clauses = context.expressionCaseClauseList().expressionCaseClause();
-    LLVMBasicBlockRef[]  caseBlocks = new LLVMBasicBlockRef[clauses.Length];
-    LLVMBasicBlockRef defaultBlock = mergeBlock;
-
-    for (int i = 0; i < clauses.Length; i++)
-        fixed (byte* p = S("case" + i))caseBlocks[i] = AppendBasicBlock(currentFunc, (sbyte*)p);
-
-    for (int i = 0; i < clauses.Length; i++)
-        if (clauses[i].expressionSwitchCase() is MiniGoCompilerParser.DefaultSwitchContext)
-            defaultBlock = caseBlocks[i];
-
-    LLVMBasicBlockRef nextTest;
-    fixed (byte* p = S("test0")) nextTest= (clauses.Length > 0) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-    BuildBr(builder, nextTest);
-
-    for (int i = 0; i < clauses.Length; i++)
+    public unsafe override object VisitSimpleExpressionSwitch(
+        MiniGoCompilerParser.SimpleExpressionSwitchContext context)
     {
-        var switchCase = clauses[i].expressionSwitchCase();
-        if (switchCase is MiniGoCompilerParser.CaseSwitchContext caseCtx)
-        {
-            PositionBuilderAtEnd(builder, nextTest);
-            var caseExprs = caseCtx.expressionList().expression();
-            LLVMValueRef match = null;
-            for (int j = 0; j < caseExprs.Length; j++)
-            {
-                LLVMValueRef caseVal = (LLVMValueRef) Visit(caseExprs[j]);
-                LLVMValueRef cmp;
-                if (TypeOf(switchVal) == floatType)
-                    fixed (byte* p = S("cmptmp")) cmp = BuildFCmp(builder, LLVMRealPredicate.LLVMRealOEQ, switchVal, caseVal, (sbyte*)p);
-                else
-                    fixed (byte* p = S("cmptmp")) cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
-                if (match == null) match = cmp;
-                else fixed (byte* p = S("ortmp")) match = BuildOr(builder, match, cmp, (sbyte*)p);
-            }
-            fixed (byte* p = S("test" + (i + 1)))  nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc,(sbyte*)p) : defaultBlock;
-            BuildCondBr(builder, match, caseBlocks[i], nextTest);
-        }
-        else
-        {
-            LLVMBasicBlockRef newTest;
-            fixed (byte* p = S("test" + (i + 1)))
-                newTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-            PositionBuilderAtEnd(builder, nextTest);
-            BuildBr(builder, newTest);
-            nextTest = newTest;
-        }
-        PositionBuilderAtEnd(builder, caseBlocks[i]);
-        Visit(clauses[i].statementList());
-        if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
-            BuildBr(builder, mergeBlock);
-    }
+        Visit(context.simpleStatement());
+        LLVMValueRef switchVal = (LLVMValueRef)Visit(context.expression());
+        LLVMBasicBlockRef mergeBlock;
+        fixed (byte* p = S("switchMerge")) mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
+        breakTargets.Push(mergeBlock);
 
-    breakTargets.Pop();
-    PositionBuilderAtEnd(builder, mergeBlock);
-    return null;
+        var clauses = context.expressionCaseClauseList().expressionCaseClause();
+        LLVMBasicBlockRef[] caseBlocks = new LLVMBasicBlockRef[clauses.Length];
+        LLVMBasicBlockRef defaultBlock = mergeBlock;
+
+        for (int i = 0; i < clauses.Length; i++)
+            fixed (byte* p = S("case" + i))
+                caseBlocks[i] = AppendBasicBlock(currentFunc, (sbyte*)p);
+
+        for (int i = 0; i < clauses.Length; i++)
+            if (clauses[i].expressionSwitchCase() is MiniGoCompilerParser.DefaultSwitchContext)
+                defaultBlock = caseBlocks[i];
+
+        LLVMBasicBlockRef nextTest;
+        fixed (byte* p = S("test0"))
+            nextTest = (clauses.Length > 0) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+        BuildBr(builder, nextTest);
+
+        for (int i = 0; i < clauses.Length; i++)
+        {
+            var switchCase = clauses[i].expressionSwitchCase();
+            if (switchCase is MiniGoCompilerParser.CaseSwitchContext caseCtx)
+            {
+                PositionBuilderAtEnd(builder, nextTest);
+                var caseExprs = caseCtx.expressionList().expression();
+                LLVMValueRef match = null;
+                for (int j = 0; j < caseExprs.Length; j++)
+                {
+                    LLVMValueRef caseVal = (LLVMValueRef)Visit(caseExprs[j]);
+                    LLVMValueRef cmp;
+                    if (TypeOf(switchVal) == floatType)
+                        fixed (byte* p = S("cmptmp"))
+                            cmp = BuildFCmp(builder, LLVMRealPredicate.LLVMRealOEQ, switchVal, caseVal, (sbyte*)p);
+                    else
+                        fixed (byte* p = S("cmptmp"))
+                            cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
+                    if (match == null) match = cmp;
+                    else
+                        fixed (byte* p = S("ortmp"))
+                            match = BuildOr(builder, match, cmp, (sbyte*)p);
+                }
+
+                fixed (byte* p = S("test" + (i + 1)))
+                    nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+                BuildCondBr(builder, match, caseBlocks[i], nextTest);
+            }
+            else
+            {
+                LLVMBasicBlockRef newTest;
+                fixed (byte* p = S("test" + (i + 1)))
+                    newTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+                PositionBuilderAtEnd(builder, nextTest);
+                BuildBr(builder, newTest);
+                nextTest = newTest;
+            }
+
+            PositionBuilderAtEnd(builder, caseBlocks[i]);
+            Visit(clauses[i].statementList());
+            if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
+                BuildBr(builder, mergeBlock);
+        }
+
+        breakTargets.Pop();
+        PositionBuilderAtEnd(builder, mergeBlock);
+        return null;
     }
 
     /// <summary>
@@ -2901,50 +2935,107 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// </summary>
     public override unsafe object VisitExpressionSwitch(MiniGoCompilerParser.ExpressionSwitchContext context)
     {
-         LLVMValueRef switchVal = (LLVMValueRef)Visit(context.expression());
+        LLVMValueRef switchVal = (LLVMValueRef)Visit(context.expression());
 
-    LLVMBasicBlockRef mergeBlock;
-    fixed (byte* p = S("switchMerge"))
-        mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
+        LLVMBasicBlockRef mergeBlock;
+        fixed (byte* p = S("switchMerge"))
+            mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
 
-    breakTargets.Push(mergeBlock);
+        breakTargets.Push(mergeBlock);
 
-    var clauses = context.expressionCaseClauseList().expressionCaseClause();
+        var clauses = context.expressionCaseClauseList().expressionCaseClause();
 
-    LLVMBasicBlockRef[] caseBlocks = new LLVMBasicBlockRef[clauses.Length];
-    LLVMBasicBlockRef defaultBlock = mergeBlock;
+        LLVMBasicBlockRef[] caseBlocks = new LLVMBasicBlockRef[clauses.Length];
+        LLVMBasicBlockRef defaultBlock = mergeBlock;
 
-    for (int i = 0; i < clauses.Length; i++)
-    {
-        fixed (byte* p = S("case" + i))
-            caseBlocks[i] = AppendBasicBlock(currentFunc, (sbyte*)p);
-
-        if (clauses[i].expressionSwitchCase() is MiniGoCompilerParser.DefaultSwitchContext)
-            defaultBlock = caseBlocks[i];
-    }
-
-    if (clauses.Length == 0)
-    {
-        BuildBr(builder, mergeBlock);
-        breakTargets.Pop();
-        PositionBuilderAtEnd(builder, mergeBlock);
-        return null;
-    }
-
-    LLVMBasicBlockRef nextTest;
-    fixed (byte* p = S("test0"))
-        nextTest = AppendBasicBlock(currentFunc, (sbyte*)p);
-
-    BuildBr(builder, nextTest);
-
-    for (int i = 0; i < clauses.Length; i++)
-    {
-        var switchCase = clauses[i].expressionSwitchCase();
-
-        if (switchCase is MiniGoCompilerParser.DefaultSwitchContext)
+        for (int i = 0; i < clauses.Length; i++)
         {
+            fixed (byte* p = S("case" + i))
+                caseBlocks[i] = AppendBasicBlock(currentFunc, (sbyte*)p);
+
+            if (clauses[i].expressionSwitchCase() is MiniGoCompilerParser.DefaultSwitchContext)
+                defaultBlock = caseBlocks[i];
+        }
+
+        if (clauses.Length == 0)
+        {
+            BuildBr(builder, mergeBlock);
+            breakTargets.Pop();
+            PositionBuilderAtEnd(builder, mergeBlock);
+            return null;
+        }
+
+        LLVMBasicBlockRef nextTest;
+        fixed (byte* p = S("test0"))
+            nextTest = AppendBasicBlock(currentFunc, (sbyte*)p);
+
+        BuildBr(builder, nextTest);
+
+        for (int i = 0; i < clauses.Length; i++)
+        {
+            var switchCase = clauses[i].expressionSwitchCase();
+
+            if (switchCase is MiniGoCompilerParser.DefaultSwitchContext)
+            {
+                PositionBuilderAtEnd(builder, nextTest);
+                BuildBr(builder, caseBlocks[i]);
+
+                PositionBuilderAtEnd(builder, caseBlocks[i]);
+                Visit(clauses[i].statementList());
+
+                if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
+                    BuildBr(builder, mergeBlock);
+
+                continue;
+            }
+
+            var caseCtx = (MiniGoCompilerParser.CaseSwitchContext)switchCase;
+
             PositionBuilderAtEnd(builder, nextTest);
-            BuildBr(builder, caseBlocks[i]);
+
+            var caseExprs = caseCtx.expressionList().expression();
+            LLVMValueRef match = null;
+
+            for (int j = 0; j < caseExprs.Length; j++)
+            {
+                LLVMValueRef caseVal = (LLVMValueRef)Visit(caseExprs[j]);
+                LLVMValueRef cmp;
+
+                if (TypeOf(switchVal) == floatType)
+                {
+                    fixed (byte* p = S("cmptmp"))
+                        cmp = BuildFCmp(builder, LLVMRealPredicate.LLVMRealOEQ, switchVal, caseVal, (sbyte*)p);
+                }
+                else
+                {
+                    fixed (byte* p = S("cmptmp"))
+                        cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
+                }
+
+                if (match.Handle == IntPtr.Zero)
+                {
+                    match = cmp;
+                }
+                else
+                {
+                    fixed (byte* p = S("ortmp"))
+                        match = BuildOr(builder, match, cmp, (sbyte*)p);
+                }
+            }
+
+            LLVMBasicBlockRef nextBlock;
+
+            if (i + 1 < clauses.Length)
+            {
+                fixed (byte* p = S("test" + (i + 1)))
+                    nextBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
+            }
+            else
+            {
+                nextBlock = defaultBlock;
+            }
+
+            BuildCondBr(builder, match, caseBlocks[i], nextBlock);
 
             PositionBuilderAtEnd(builder, caseBlocks[i]);
             Visit(clauses[i].statementList());
@@ -2952,77 +3043,20 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
             if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
                 BuildBr(builder, mergeBlock);
 
-            continue;
+            nextTest = nextBlock;
         }
 
-        var caseCtx = (MiniGoCompilerParser.CaseSwitchContext)switchCase;
-
-        PositionBuilderAtEnd(builder, nextTest);
-
-        var caseExprs = caseCtx.expressionList().expression();
-        LLVMValueRef match = null;
-
-        for (int j = 0; j < caseExprs.Length; j++)
+        if (GetBasicBlockTerminator(nextTest) == null &&
+            nextTest.Handle != mergeBlock.Handle)
         {
-            LLVMValueRef caseVal = (LLVMValueRef)Visit(caseExprs[j]);
-            LLVMValueRef cmp;
-
-            if (TypeOf(switchVal) == floatType)
-            {
-                fixed (byte* p = S("cmptmp"))
-                    cmp = BuildFCmp(builder, LLVMRealPredicate.LLVMRealOEQ, switchVal, caseVal, (sbyte*)p);
-            }
-            else
-            {
-                fixed (byte* p = S("cmptmp"))
-                    cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
-            }
-
-            if (match.Handle == IntPtr.Zero)
-            {
-                match = cmp;
-            }
-            else
-            {
-                fixed (byte* p = S("ortmp"))
-                    match = BuildOr(builder, match, cmp, (sbyte*)p);
-            }
+            PositionBuilderAtEnd(builder, nextTest);
+            BuildBr(builder, defaultBlock);
         }
 
-        LLVMBasicBlockRef nextBlock;
+        breakTargets.Pop();
+        PositionBuilderAtEnd(builder, mergeBlock);
 
-        if (i + 1 < clauses.Length)
-        {
-            fixed (byte* p = S("test" + (i + 1)))
-                nextBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
-        }
-        else
-        {
-            nextBlock = defaultBlock;
-        }
-
-        BuildCondBr(builder, match, caseBlocks[i], nextBlock);
-
-        PositionBuilderAtEnd(builder, caseBlocks[i]);
-        Visit(clauses[i].statementList());
-
-        if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
-            BuildBr(builder, mergeBlock);
-
-        nextTest = nextBlock;
-    }
-
-    if (GetBasicBlockTerminator(nextTest) == null &&
-        nextTest.Handle != mergeBlock.Handle)
-    {
-        PositionBuilderAtEnd(builder, nextTest);
-        BuildBr(builder, defaultBlock);
-    }
-
-    breakTargets.Pop();
-    PositionBuilderAtEnd(builder, mergeBlock);
-
-    return null;
+        return null;
     }
 
     /// <summary>
@@ -3032,71 +3066,76 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// </summary>
     public unsafe override object VisitSimpleSwitch(MiniGoCompilerParser.SimpleSwitchContext context)
     {
-       Visit(context.simpleStatement());
-    LLVMValueRef switchVal = ConstInt(boolType, 1, 0);
+        Visit(context.simpleStatement());
+        LLVMValueRef switchVal = ConstInt(boolType, 1, 0);
 
-    LLVMBasicBlockRef mergeBlock;
-    fixed (byte* p = S("switchMerge")) mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
-    breakTargets.Push(mergeBlock);
+        LLVMBasicBlockRef mergeBlock;
+        fixed (byte* p = S("switchMerge")) mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
+        breakTargets.Push(mergeBlock);
 
-    var clauses = context.expressionCaseClauseList().expressionCaseClause();
-    LLVMBasicBlockRef[] caseBlocks = new LLVMBasicBlockRef[clauses.Length];
-    LLVMBasicBlockRef defaultBlock = mergeBlock;
+        var clauses = context.expressionCaseClauseList().expressionCaseClause();
+        LLVMBasicBlockRef[] caseBlocks = new LLVMBasicBlockRef[clauses.Length];
+        LLVMBasicBlockRef defaultBlock = mergeBlock;
 
-    for (int i = 0; i < clauses.Length; i++)
-        fixed (byte* p = S("case" + i)) caseBlocks[i] = AppendBasicBlock(currentFunc, (sbyte*)p);
+        for (int i = 0; i < clauses.Length; i++)
+            fixed (byte* p = S("case" + i))
+                caseBlocks[i] = AppendBasicBlock(currentFunc, (sbyte*)p);
 
-    for (int i = 0; i < clauses.Length; i++)
-    {
-        if (clauses[i].expressionSwitchCase() is MiniGoCompilerParser.DefaultSwitchContext)
-            defaultBlock = caseBlocks[i];
-    }
-
-    LLVMBasicBlockRef nextTest;
-    fixed (byte* p = S("test0")) nextTest = (clauses.Length > 0) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-    BuildBr(builder, nextTest);
-
-    for (int i = 0; i < clauses.Length; i++)
-    {
-        var switchCase = clauses[i].expressionSwitchCase();
-
-        if (switchCase is MiniGoCompilerParser.CaseSwitchContext caseCtx)
+        for (int i = 0; i < clauses.Length; i++)
         {
-            PositionBuilderAtEnd(builder, nextTest);
-            var caseExprs = caseCtx.expressionList().expression();
-            LLVMValueRef match = null;
-            for (int j = 0; j < caseExprs.Length; j++)
+            if (clauses[i].expressionSwitchCase() is MiniGoCompilerParser.DefaultSwitchContext)
+                defaultBlock = caseBlocks[i];
+        }
+
+        LLVMBasicBlockRef nextTest;
+        fixed (byte* p = S("test0"))
+            nextTest = (clauses.Length > 0) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+        BuildBr(builder, nextTest);
+
+        for (int i = 0; i < clauses.Length; i++)
+        {
+            var switchCase = clauses[i].expressionSwitchCase();
+
+            if (switchCase is MiniGoCompilerParser.CaseSwitchContext caseCtx)
             {
-                LLVMValueRef caseVal = (LLVMValueRef) Visit(caseExprs[j]);
-                LLVMValueRef cmp;
-                fixed (byte* p = S("cmptmp")) cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
-                if (match == null) match = cmp;
-                else fixed (byte* p = S("ortmp")) match = BuildOr(builder, match, cmp, (sbyte*)p);
+                PositionBuilderAtEnd(builder, nextTest);
+                var caseExprs = caseCtx.expressionList().expression();
+                LLVMValueRef match = null;
+                for (int j = 0; j < caseExprs.Length; j++)
+                {
+                    LLVMValueRef caseVal = (LLVMValueRef)Visit(caseExprs[j]);
+                    LLVMValueRef cmp;
+                    fixed (byte* p = S("cmptmp"))
+                        cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
+                    if (match == null) match = cmp;
+                    else
+                        fixed (byte* p = S("ortmp"))
+                            match = BuildOr(builder, match, cmp, (sbyte*)p);
+                }
+
+                fixed (byte* p = S("test" + (i + 1)))
+                    nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+                BuildCondBr(builder, match, caseBlocks[i], nextTest);
+            }
+            else
+            {
+                LLVMBasicBlockRef newTest;
+                fixed (byte* p = S("test" + (i + 1)))
+                    newTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+                PositionBuilderAtEnd(builder, nextTest);
+                BuildBr(builder, newTest);
+                nextTest = newTest;
             }
 
-            fixed (byte* p = S("test" + (i + 1)))
-                nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-            BuildCondBr(builder, match, caseBlocks[i], nextTest);
-        }
-        else
-        {
-            LLVMBasicBlockRef newTest;
-            fixed (byte* p = S("test" + (i + 1)))
-                newTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-            PositionBuilderAtEnd(builder, nextTest);
-            BuildBr(builder, newTest);
-            nextTest = newTest;
+            PositionBuilderAtEnd(builder, caseBlocks[i]);
+            Visit(clauses[i].statementList());
+            if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
+                BuildBr(builder, mergeBlock);
         }
 
-        PositionBuilderAtEnd(builder, caseBlocks[i]);
-        Visit(clauses[i].statementList());
-        if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
-            BuildBr(builder, mergeBlock);
-    }
-
-    breakTargets.Pop();
-    PositionBuilderAtEnd(builder, mergeBlock);
-    return null;
+        breakTargets.Pop();
+        PositionBuilderAtEnd(builder, mergeBlock);
+        return null;
     }
 
     /// <summary>
@@ -3106,67 +3145,73 @@ private unsafe LLVMValueRef GetIndexedElementPointer(
     /// </summary>
     public unsafe override object VisitEmptySwitch(MiniGoCompilerParser.EmptySwitchContext context)
     {
-         LLVMValueRef switchVal = ConstInt(boolType, 1, 0);
-    LLVMBasicBlockRef mergeBlock;
-    fixed (byte* p = S("switchMerge")) mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
-    breakTargets.Push(mergeBlock);
+        LLVMValueRef switchVal = ConstInt(boolType, 1, 0);
+        LLVMBasicBlockRef mergeBlock;
+        fixed (byte* p = S("switchMerge")) mergeBlock = AppendBasicBlock(currentFunc, (sbyte*)p);
+        breakTargets.Push(mergeBlock);
 
-    var clauses = context.expressionCaseClauseList().expressionCaseClause();
-    LLVMBasicBlockRef[] caseBlocks = new LLVMBasicBlockRef[clauses.Length];
-    LLVMBasicBlockRef defaultBlock = mergeBlock;
+        var clauses = context.expressionCaseClauseList().expressionCaseClause();
+        LLVMBasicBlockRef[] caseBlocks = new LLVMBasicBlockRef[clauses.Length];
+        LLVMBasicBlockRef defaultBlock = mergeBlock;
 
-    for (int i = 0; i < clauses.Length; i++)
-        fixed (byte* p = S("case" + i)) caseBlocks[i] = AppendBasicBlock(currentFunc, (sbyte*)p);
+        for (int i = 0; i < clauses.Length; i++)
+            fixed (byte* p = S("case" + i))
+                caseBlocks[i] = AppendBasicBlock(currentFunc, (sbyte*)p);
 
-    for (int i = 0; i < clauses.Length; i++)
-        if (clauses[i].expressionSwitchCase() is MiniGoCompilerParser.DefaultSwitchContext)
-            defaultBlock = caseBlocks[i];
+        for (int i = 0; i < clauses.Length; i++)
+            if (clauses[i].expressionSwitchCase() is MiniGoCompilerParser.DefaultSwitchContext)
+                defaultBlock = caseBlocks[i];
 
-    LLVMBasicBlockRef nextTest;
-    fixed (byte* p = S("test0")) nextTest= (clauses.Length > 0) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-    BuildBr(builder, nextTest);
+        LLVMBasicBlockRef nextTest;
+        fixed (byte* p = S("test0"))
+            nextTest = (clauses.Length > 0) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+        BuildBr(builder, nextTest);
 
-    for (int i = 0; i < clauses.Length; i++)
-    {
-        var switchCase = clauses[i].expressionSwitchCase();
-
-        if (switchCase is MiniGoCompilerParser.CaseSwitchContext caseCtx)
+        for (int i = 0; i < clauses.Length; i++)
         {
-            PositionBuilderAtEnd(builder, nextTest);
-            var caseExprs = caseCtx.expressionList().expression();
-            LLVMValueRef match = null;
-            for (int j = 0; j < caseExprs.Length; j++)
-            {
-                LLVMValueRef caseVal = (LLVMValueRef) Visit(caseExprs[j]);
-                LLVMValueRef cmp;
+            var switchCase = clauses[i].expressionSwitchCase();
 
-                fixed (byte* p = S("cmptmp")) cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
-                if (match == null) match = cmp;
-                else fixed (byte* p = S("ortmp")) match = BuildOr(builder, match, cmp, (sbyte*)p);
+            if (switchCase is MiniGoCompilerParser.CaseSwitchContext caseCtx)
+            {
+                PositionBuilderAtEnd(builder, nextTest);
+                var caseExprs = caseCtx.expressionList().expression();
+                LLVMValueRef match = null;
+                for (int j = 0; j < caseExprs.Length; j++)
+                {
+                    LLVMValueRef caseVal = (LLVMValueRef)Visit(caseExprs[j]);
+                    LLVMValueRef cmp;
+
+                    fixed (byte* p = S("cmptmp"))
+                        cmp = BuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, switchVal, caseVal, (sbyte*)p);
+                    if (match == null) match = cmp;
+                    else
+                        fixed (byte* p = S("ortmp"))
+                            match = BuildOr(builder, match, cmp, (sbyte*)p);
+                }
+
+                fixed (byte* p = S("test" + (i + 1)))
+                    nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+                BuildCondBr(builder, match, caseBlocks[i], nextTest);
+            }
+            else
+            {
+                LLVMBasicBlockRef newTest;
+                fixed (byte* p = S("test" + (i + 1)))
+                    newTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
+                PositionBuilderAtEnd(builder, nextTest);
+                BuildBr(builder, newTest);
+                nextTest = newTest;
             }
 
-            fixed (byte* p = S("test" + (i + 1)))
-                nextTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-            BuildCondBr(builder, match, caseBlocks[i], nextTest);
-        }
-        else
-        {
-            LLVMBasicBlockRef newTest;
-            fixed (byte* p = S("test" + (i + 1)))
-                newTest = (i + 1 < clauses.Length) ? AppendBasicBlock(currentFunc, (sbyte*)p) : defaultBlock;
-            PositionBuilderAtEnd(builder, nextTest);
-            BuildBr(builder, newTest);
-            nextTest = newTest;
+            PositionBuilderAtEnd(builder, caseBlocks[i]);
+            Visit(clauses[i].statementList());
+            if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
+                BuildBr(builder, mergeBlock);
         }
 
-        PositionBuilderAtEnd(builder, caseBlocks[i]);
-        Visit(clauses[i].statementList());
-        if (GetBasicBlockTerminator(GetInsertBlock(builder)) == null)
-            BuildBr(builder, mergeBlock);
-    }
-    breakTargets.Pop();
-    PositionBuilderAtEnd(builder, mergeBlock);
-    return null;
+        breakTargets.Pop();
+        PositionBuilderAtEnd(builder, mergeBlock);
+        return null;
     }
 
     /// <summary>No-op: case clause lists are handled by switch statement visitors.</summary>

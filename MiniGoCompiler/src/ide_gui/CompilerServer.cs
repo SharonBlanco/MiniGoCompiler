@@ -47,7 +47,7 @@ public class CompilerServer
     /// <summary>Resolved filesystem path to the <c>index.html</c> IDE page.</summary>
     private readonly string _htmlPath;
 
-    /// <summary>TCP port the server listens on.</summary>
+    /// <summary>TCP port the server listens on.</sNo ummary>
     private const int PORT = 5050;
 
     /// <summary>
@@ -64,9 +64,11 @@ public class CompilerServer
         _htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "ide_gui", "index.html");
         if (!File.Exists(_htmlPath))
         {
-            // Fallback: try relative to the working directory (project root)
-            _htmlPath =
-                "/home/sharonblancopiedra/Documents/VII SEMESTRE/COMPILADORES/SEMANA 12/MiniGoCompiler/MiniGoCompiler/src/ide_gui/index.html";
+            _htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "src", "ide_gui", "index.html");
+        }
+        if (!File.Exists(_htmlPath))
+        {
+            _htmlPath = Path.Combine(Directory.GetCurrentDirectory(), "src", "ide_gui", "index.html");
         }
     }
 
@@ -378,18 +380,16 @@ public class CompilerServer
 
     public class CompileResult
     {
-        /// <summary>True si no hubo errores en ninguna fase.</summary>
+        /// <summary>True when no errors were found across all compilation phases.</summary>
         public bool success { get; set; }
 
-        /// <summary>Lista de errores de sintaxis o tipos.</summary>
+        /// <summary>List of syntax or type errors detected during compilation.</summary>
         public List<CompileError> errors { get; set; } = new List<CompileError>();
 
-        // ---- NUEVOS: resultados del encoder ----
-
-        /// <summary>Salida estándar del programa compilado (lo que imprime con println).</summary>
+        /// <summary>Standard output produced by the compiled program.</summary>
         public string output { get; set; } = "";
 
-        /// <summary>El LLVM IR generado (para que el IDE lo pueda mostrar).</summary>
+        /// <summary>Generated LLVM IR code for display in the IDE.</summary>
         public string ir { get; set; } = "";
     }
 
