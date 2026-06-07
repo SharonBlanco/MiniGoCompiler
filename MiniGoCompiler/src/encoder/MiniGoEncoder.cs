@@ -87,6 +87,7 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
     /// <summary>Reference to the entry basic block of the current function, used for alloca placement.</summary>
     private LLVMBasicBlockRef entryBlock;
 
+    /// <summary>Accumulated code generation errors with source location information.</summary>
     public List<string> CodeGenErrors { get; } = new List<string>();
 
     /// <summary>
@@ -1838,6 +1839,12 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
 
         return null;
     }
+    /// <summary>
+    /// Records a code generation error with source location information extracted
+    /// from the given parser rule context.
+    /// </summary>
+    /// <param name="message">Descriptive error message.</param>
+    /// <param name="context">Parser rule context providing line and column information.</param>
     private void AddCodeGenError(string message, Antlr4.Runtime.ParserRuleContext context)
     {
         var token = context.Start;
