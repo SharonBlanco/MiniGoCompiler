@@ -267,6 +267,13 @@ public class CompilerServer
                 {
                     var encoder = new MiniGoEncoder();
                     encoder.Visit(tree);
+                    
+                    foreach (string err in encoder.CodeGenErrors)
+                    {
+                        var parsed = ParseTypeError(err);
+                        errors.Add(parsed);
+                    }
+
 
                     result.ir = encoder.GeneratedIR;
                     result.output = encoder.ProgramOutput;

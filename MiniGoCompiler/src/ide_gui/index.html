@@ -116,6 +116,22 @@
             pointer-events: none;
         }
 
+        .btn-cancel {
+            background: transparent;
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+            display: none;
+        }
+
+        .btn-cancel:hover {
+            background: rgba(255, 83, 112, 0.12);
+            color: var(--accent-red);
+        }
+
+        .btn-cancel.visible {
+            display: flex;
+        }
+
         .btn-clear {
             background: transparent;
             color: var(--text-secondary);
@@ -200,62 +216,22 @@
             min-height: 0;
         }
 
-        /* ═══ BOTTOM OUTPUT PANEL (Program output / LLVM IR) ═══ */
+        /* ═══ OUTPUT BOTTOM PANEL (Salida del programa / LLVM IR) ═══ */
         .bottom-panel {
             background: var(--bg-panel);
             border-top: 2px solid var(--accent-go);
             display: none;
             flex-direction: column;
-            height: 220px;
+            max-height: 250px;
             min-height: 120px;
-            max-height: 70vh;
-            flex-shrink: 0;
-            transition: height 0.18s ease;
         }
 
         .bottom-panel.visible {
             display: flex;
         }
 
-        .bottom-panel.expanded {
-            height: 55vh;
-        }
-
-        /* Top drag handle for resizing the bottom terminal upward. */
-        .bottom-resize-handle {
-            height: 8px;
-            cursor: row-resize;
-            background: linear-gradient(to bottom, var(--accent-go), var(--border));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            opacity: 0.85;
-            transition: opacity 0.2s ease, background 0.2s ease;
-        }
-
-        .bottom-resize-handle:hover,
-        .bottom-resize-handle.active {
-            opacity: 1;
-            background: var(--accent-go);
-        }
-
-        .bottom-resize-arrow {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            line-height: 1;
-            color: var(--bg-deep);
-            pointer-events: none;
-            user-select: none;
-        }
-
-        .bottom-panel.resizing {
-            transition: none;
-        }
-
         .bottom-tabs {
             display: flex;
-            align-items: center;
             background: var(--bg-surface);
             border-bottom: 1px solid var(--border);
             padding: 0;
@@ -283,39 +259,6 @@
             border-bottom-color: var(--accent-go);
         }
 
-        .bottom-tab-spacer {
-            flex: 1;
-        }
-
-        .bottom-expand-btn {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-            width: 28px;
-            height: 24px;
-            margin-right: 8px;
-            border-radius: 5px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            line-height: 1;
-        }
-
-        .bottom-expand-btn:hover {
-            border-color: var(--accent-go);
-            color: var(--accent-go);
-            background: var(--bg-hover);
-        }
-
-        .bottom-expand-btn.expanded {
-            color: var(--accent-go);
-            border-color: var(--accent-go);
-        }
-
         .bottom-content {
             margin: 0;
             padding: 12px 16px;
@@ -336,7 +279,7 @@
             color: var(--accent-red);
         }
 
-        /* ═══ RESIZE HANDLE (editor ↔ error panel) ═══ */
+        /* ═══ RESIZE HANDLE (horizontal, editor ↔ error panel) ═══ */
         .resize-handle {
             width: 4px;
             cursor: col-resize;
@@ -350,7 +293,7 @@
             background: var(--accent-go);
         }
 
-        /* ═══ ERROR PANEL (right side) ═══ */
+        /* ═══ ERROR PANEL (derecha) ═══ */
         .output-panel {
             width: 340px;
             min-width: 200px;
@@ -546,13 +489,16 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             Compilar
         </button>
+        <button class="btn btn-cancel" id="cancelBtn" onclick="cancelCompile()">
+            ✕ Cancelar
+        </button>
     </div>
 </div>
 
 <!-- MAIN -->
 <div class="main">
 
-    <!-- Editor + bottom output panel -->
+    <!-- Editor + Bottom output panel -->
     <div class="editor-area">
 
         <div class="editor-panel">
@@ -565,22 +511,14 @@
             <div id="editor-container"></div>
         </div>
 
-        <!-- Bottom panel: program output and LLVM IR -->
+        <!-- Panel inferior: salida del programa y LLVM IR -->
         <div class="bottom-panel" id="bottomPanel">
-            <!-- Drag this handle upward or downward to resize the terminal panel. -->
-            <div class="bottom-resize-handle" id="bottomResizeHandle" title="Drag to resize output panel">
-                <span class="bottom-resize-arrow">▲</span>
-            </div>
             <div class="bottom-tabs">
                 <button class="bottom-tab active" id="tabOutput" onclick="switchBottomTab('output')">
                     ▶ Salida del Programa
                 </button>
                 <button class="bottom-tab" id="tabIR" onclick="switchBottomTab('ir')">
                     { } LLVM IR
-                </button>
-                <div class="bottom-tab-spacer"></div>
-                <button class="bottom-expand-btn" id="bottomExpandBtn" onclick="toggleBottomPanelSize()" title="Expand output panel" aria-label="Expand output panel">
-                    ▲
                 </button>
             </div>
             <pre class="bottom-content" id="programOutput"></pre>
@@ -592,7 +530,7 @@
     <!-- Resize handle -->
     <div class="resize-handle" id="resizeHandle"></div>
 
-    <!-- Error panel (right side) -->
+    <!-- Error panel (derecha) -->
     <div class="output-panel" id="outputPanel">
         <div class="output-tabs">
             <button class="output-tab active" id="tabErrors">
@@ -629,6 +567,7 @@
 <script>
     let editor;
     let autoCompileTimer;
+    let compileAbortController = null;
     const AUTO_COMPILE_DELAY = 700;
 
     // ═══ MONACO SETUP ═══
@@ -636,7 +575,7 @@
 
     require(['vs/editor/editor.main'], function () {
 
-        // ── Register the MiniGo language ──
+        // ── Registrar lenguaje MiniGo ──
         monaco.languages.register({ id: 'minigo' });
 
         monaco.languages.setMonarchTokensProvider('minigo', {
@@ -689,7 +628,7 @@
             }
         });
 
-        // ── Define the custom dark theme ──
+        // ── Tema oscuro personalizado ──
         monaco.editor.defineTheme('minigo-dark', {
             base: 'vs-dark',
             inherit: true,
@@ -720,7 +659,7 @@
             }
         });
 
-        // ── Create the editor instance ──
+        // ── Crear el editor ──
         editor = monaco.editor.create(document.getElementById('editor-container'), {
             value: '// Escribí tu código MiniGo acá\npackage main;\n\n',
             language: 'minigo',
@@ -739,13 +678,13 @@
             insertSpaces: true,
         });
 
-        // ── Update cursor position in the status bar ──
+        // ── Actualizar posición del cursor en la barra de estado ──
         editor.onDidChangeCursorPosition(function (e) {
             document.getElementById('cursorPos').textContent =
                 'Ln ' + e.position.lineNumber + ', Col ' + e.position.column;
         });
 
-        // ── Auto-compile after 700 ms without typing ──
+        // ── Auto-compile después de 700ms sin escribir ──
         editor.onDidChangeModelContent(function () {
             document.getElementById('tabDot').classList.add('dirty');
             clearTimeout(autoCompileTimer);
@@ -754,7 +693,7 @@
             }, AUTO_COMPILE_DELAY);
         });
 
-        // ── Ctrl+Enter compiles immediately ──
+        // ── Ctrl+Enter compila de inmediato ──
         editor.addAction({
             id: 'compile',
             label: 'Compilar',
@@ -767,17 +706,27 @@
     });
 
 
-    // ═══ COMPILE ═══
+    // ═══ COMPILAR ═══
     async function compile() {
         if (!editor) return;
 
+        // Cancel any previous pending request before starting a new one.
+        if (compileAbortController) {
+            compileAbortController.abort();
+        }
+
+        compileAbortController = new AbortController();
+
         const btn        = document.getElementById('compileBtn');
+        const cancelBtn  = document.getElementById('cancelBtn');
         const statusDot  = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
 
         btn.classList.add('compiling');
+        cancelBtn.classList.add('visible');
+
         btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Compilando...';
-        statusDot.className  = 'status-dot checking';
+        statusDot.className = 'status-dot checking';
         statusText.textContent = 'Verificando...';
 
         const code = editor.getValue();
@@ -786,38 +735,73 @@
             const response = await fetch('/compile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code })
+                body: JSON.stringify({ code }),
+                signal: compileAbortController.signal
             });
+
             const result = await response.json();
             showResults(result);
         } catch (err) {
-            showResults({
-                success: false,
-                errors: [{
-                    message: 'No se puede conectar con el servidor del compilador. ¿Está corriendo?',
-                    line: 1, column: 1, length: 1
-                }]
-            });
-        }
+            if (err.name === 'AbortError') {
+                showResults({
+                    success: false,
+                    errors: [{
+                        message: 'Compilación cancelada por el usuario.',
+                        line: 1,
+                        column: 1,
+                        length: 1
+                    }]
+                });
+            } else {
+                showResults({
+                    success: false,
+                    errors: [{
+                        message: 'No se puede conectar con el servidor del compilador. ¿Está corriendo?',
+                        line: 1,
+                        column: 1,
+                        length: 1
+                    }]
+                });
+            }
+        } finally {
+            compileAbortController = null;
 
-        btn.classList.remove('compiling');
-        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Compilar';
-        document.getElementById('tabDot').classList.remove('dirty');
+            btn.classList.remove('compiling');
+            cancelBtn.classList.remove('visible');
+
+            btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Compilar';
+            document.getElementById('tabDot').classList.remove('dirty');
+        }
     }
 
 
-    // ═══ DISPLAY COMPILATION RESULTS ═══
+    function cancelCompile() {
+        clearTimeout(autoCompileTimer);
+
+        if (compileAbortController) {
+            compileAbortController.abort();
+        }
+
+        const statusDot  = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        statusDot.className = 'status-dot error';
+        statusText.textContent = 'Compilación cancelada';
+    }
+
+
+    // ═══ MOSTRAR RESULTADOS ═══
     function showResults(result) {
         const content    = document.getElementById('outputContent');
         const badge      = document.getElementById('errorBadge');
         const statusDot  = document.getElementById('statusDot');
         const statusText = document.getElementById('statusText');
 
-        // Clear previous editor markers
+        // Limpiar marcadores previos en el editor
         monaco.editor.setModelMarkers(editor.getModel(), 'compiler', []);
 
         if (!result.errors || result.errors.length === 0) {
-            // ── Successful compilation ──
+            // ── Compilación exitosa ──
             badge.style.display  = 'inline';
             badge.className      = 'badge success';
             badge.textContent    = '✓';
@@ -833,7 +817,7 @@
                         <p>Compilación exitosa — 0 errores</p>
                     </div>`;
         } else {
-            // ── Compilation errors ──
+            // ── Hay errores ──
             const errorCount = result.errors.length;
             badge.style.display  = 'inline';
             badge.className      = 'badge errors';
@@ -841,7 +825,7 @@
             statusDot.className  = 'status-dot error';
             statusText.textContent = errorCount + ' error' + (errorCount > 1 ? 'es' : '') + ' encontrado' + (errorCount > 1 ? 's' : '');
 
-            // Render the error list in the right panel
+            // Lista de errores en el panel derecho
             content.innerHTML = result.errors.map(function (err) {
                 return '<div class="error-item error" onclick="goToError(' + (err.line || 1) + ', ' + (err.column || 1) + ')">' +
                     '<div class="error-icon err">✕</div>' +
@@ -852,7 +836,7 @@
                     '</div>';
             }).join('');
 
-            // Red error markers in the editor
+            // Marcadores rojos en el editor
             var markers = result.errors.map(function (err) {
                 return {
                     severity: monaco.MarkerSeverity.Error,
@@ -866,13 +850,13 @@
             monaco.editor.setModelMarkers(editor.getModel(), 'compiler', markers);
         }
 
-        // ── Bottom panel: program output and LLVM IR ──
+        // ── Panel inferior: salida del programa y LLVM IR ──
         var bottomPanel   = document.getElementById('bottomPanel');
         var programOutput = document.getElementById('programOutput');
         var llvmIR        = document.getElementById('llvmIR');
 
         if (result.success && (result.output || result.ir)) {
-            // Successful compilation with encoder output
+            // Compilación exitosa con output del encoder
             bottomPanel.classList.add('visible');
             programOutput.textContent = result.output || '(el programa no produjo salida)';
             programOutput.className   = 'bottom-content success';
@@ -880,7 +864,7 @@
             llvmIR.className          = 'bottom-content';
             switchBottomTab('output');
         } else if (result.ir) {
-            // IR was generated, but link or execution failed
+            // Hubo IR pero falló el link/ejecución
             bottomPanel.classList.add('visible');
             programOutput.textContent = result.output || '(error durante la ejecución)';
             programOutput.className   = 'bottom-content error-output';
@@ -888,7 +872,7 @@
             llvmIR.className          = 'bottom-content';
             switchBottomTab('output');
         } else {
-            // Syntax/type errors: nothing to show in the bottom panel
+            // Errores de sintaxis/tipos: no hay nada que mostrar abajo
             bottomPanel.classList.remove('visible');
             programOutput.textContent = '';
             llvmIR.textContent        = '';
@@ -896,7 +880,7 @@
     }
 
 
-    // ═══ SWITCH BETWEEN BOTTOM OUTPUT TABS ═══
+    // ═══ SWITCH ENTRE TABS DE OUTPUT ═══
     function switchBottomTab(tab) {
         var outputEl = document.getElementById('programOutput');
         var irEl     = document.getElementById('llvmIR');
@@ -915,89 +899,6 @@
             tabIr.classList.add('active');
         }
     }
-
-
-    // ═══ BOTTOM OUTPUT PANEL EXPAND / COLLAPSE ═══
-    function toggleBottomPanelSize() {
-        var bottomPanel = document.getElementById('bottomPanel');
-        var expandBtn   = document.getElementById('bottomExpandBtn');
-
-        var isExpanded = bottomPanel.classList.toggle('expanded');
-
-        if (isExpanded) {
-            bottomPanel.style.height = '55vh';
-        } else {
-            bottomPanel.style.height = '220px';
-        }
-
-        expandBtn.classList.toggle('expanded', isExpanded);
-        expandBtn.textContent = isExpanded ? '▼' : '▲';
-        expandBtn.title = isExpanded ? 'Collapse output panel' : 'Expand output panel';
-        expandBtn.setAttribute('aria-label', expandBtn.title);
-
-        if (editor) {
-            setTimeout(function () {
-                editor.layout();
-            }, 200);
-        }
-    }
-
-
-    // ═══ BOTTOM OUTPUT PANEL VERTICAL RESIZE ═══
-    (function () {
-        var handle = document.getElementById('bottomResizeHandle');
-        var panel  = document.getElementById('bottomPanel');
-        var dragging = false;
-        var startY = 0;
-        var startHeight = 0;
-
-        function clamp(value, min, max) {
-            return Math.min(Math.max(value, min), max);
-        }
-
-        handle.addEventListener('mousedown', function (e) {
-            dragging = true;
-            startY = e.clientY;
-            startHeight = panel.getBoundingClientRect().height;
-            handle.classList.add('active');
-            panel.classList.add('resizing');
-            document.body.style.cursor = 'row-resize';
-            document.body.style.userSelect = 'none';
-            e.preventDefault();
-        });
-
-        document.addEventListener('mousemove', function (e) {
-            if (!dragging) return;
-
-            // Moving the mouse upward increases the terminal height.
-            var delta = startY - e.clientY;
-            var maxHeight = Math.floor(window.innerHeight * 0.70);
-            var newHeight = clamp(startHeight + delta, 120, maxHeight);
-
-            panel.style.height = newHeight + 'px';
-            panel.classList.remove('expanded');
-
-            var expandBtn = document.getElementById('bottomExpandBtn');
-            expandBtn.textContent = '▲';
-            expandBtn.classList.remove('expanded');
-            expandBtn.title = 'Expand output panel';
-            expandBtn.setAttribute('aria-label', expandBtn.title);
-
-            if (editor) editor.layout();
-        });
-
-        document.addEventListener('mouseup', function () {
-            if (!dragging) return;
-
-            dragging = false;
-            handle.classList.remove('active');
-            panel.classList.remove('resizing');
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-
-            if (editor) editor.layout();
-        });
-    })();
 
 
     // ═══ HELPERS ═══
@@ -1037,7 +938,7 @@
     }
 
 
-    // ═══ RESIZE HANDLE (drag to resize the error panel) ═══
+    // ═══ RESIZE HANDLE (arrastrar para redimensionar panel de errores) ═══
     (function () {
         var handle = document.getElementById('resizeHandle');
         var panel  = document.getElementById('outputPanel');
