@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using syntaxchecker.generated;
 using System;
+using Antlr4.Runtime;
 using LLVMSharp.Interop;
 using MiniGoCompiler.typechecker;
 using static LLVMSharp.Interop.LLVM;
@@ -66,11 +67,24 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
     /// <summary>Reference to the LLVM function currently being generated.</summary>
     private LLVMValueRef currentFunc;
 
-    /// <summary>Maps variable names to their LLVM alloca/global pointers for load/store operations.</summary>
-    private Dictionary<string, LLVMValueRef> referenceTable = new Dictionary<string, LLVMValueRef>();
+    /// <summary>
+    /// Maps variable bindings to their LLVM alloca/global pointers.
+    /// The key is the pair (semantic declaration context attached by the type checker,
+    /// variable name). Using the declaration as the primary part of the key removes
+    /// the need to disambiguate shadowed names by saving/restoring tables, since two
+    /// distinct declarations always produce two distinct keys. The name is required
+    /// because a single declaration node (e.g. <c>var a, b int</c>) can introduce
+    /// several variables.
+    /// </summary>
+    private Dictionary<(ParserRuleContext decl, string name), LLVMValueRef> referenceTable =
+        new Dictionary<(ParserRuleContext, string), LLVMValueRef>();
 
-    /// <summary>Maps variable names to their LLVM types, needed for typed load instructions.</summary>
-    private Dictionary<string, LLVMTypeRef> typeTable = new Dictionary<string, LLVMTypeRef>();
+    /// <summary>
+    /// Maps variable bindings to their LLVM types. Same composite-key scheme as
+    /// <see cref="referenceTable"/>.
+    /// </summary>
+    private Dictionary<(ParserRuleContext decl, string name), LLVMTypeRef> typeTable =
+        new Dictionary<(ParserRuleContext, string), LLVMTypeRef>();
 
     /// <summary>Maps user-defined type alias names to their resolved LLVM type representations.</summary>
     private Dictionary<string, LLVMTypeRef> userDefinedTypes = new Dictionary<string, LLVMTypeRef>();
@@ -89,6 +103,13 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
 
     /// <summary>Accumulated code generation errors with source location information.</summary>
     public List<string> CodeGenErrors { get; } = new List<string>();
+    
+    /// <summary>
+    /// Maps slice LLVM struct types to their element type.
+    /// Slices are represented as { T*, i32 len, i32 cap }, but LLVM opaque pointers
+    /// may not preserve the element type reliably, so the encoder stores it here.
+    /// </summary>
+    private Dictionary<IntPtr, LLVMTypeRef> sliceElementTypes = new Dictionary<IntPtr, LLVMTypeRef>();
 
     /// <summary>
     /// Initializes a new encoder with default LLVM primitive type references.
@@ -140,7 +161,9 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
         Visit(context.topDeclarationList());
         if (CodeGenErrors.Count > 0)
         {
-            this.GeneratedIR = this.module.PrintToString();
+            this.GeneratedIR = "";
+            this.ProgramOutput = "";
+            this.CompilationSuccess = false;
             Cleanup();
             return null;
         }
@@ -277,61 +300,83 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
 
 
     /// <summary>
-    /// Executes the linked binary and captures its standard output into
-    /// <see cref="ProgramOutput"/>. Sets <see cref="CompilationSuccess"/>
-    /// based on the process exit code.
-    /// </summary>
-    /// <param name="exeFile">Path to the executable to run.</param>
-    /// <param name="isWindows">Whether the host OS is Windows.</param>
-    /// <param name="inFlatpak">Whether the process is running inside a Flatpak sandbox.</param>
-    private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
-    {
-        string program;
-        string args;
+/// Executes the linked binary and captures its standard output into
+/// <see cref="ProgramOutput"/>. If the generated program does not finish
+/// within the configured timeout, the process is killed to prevent the IDE
+/// from hanging on infinite loops.
+/// </summary>
+/// <param name="exeFile">Path to the executable to run.</param>
+/// <param name="isWindows">Whether the host OS is Windows.</param>
+/// <param name="inFlatpak">Whether the process is running inside a Flatpak sandbox.</param>
+private void RunAndCapture(string exeFile, bool isWindows, bool inFlatpak)
+{
+    string program;
+    string args;
 
-        if (!isWindows && inFlatpak)
+    if (!isWindows && inFlatpak)
+    {
+        program = "flatpak-spawn";
+        args = "--host ./" + exeFile;
+    }
+    else
+    {
+        program = isWindows ? exeFile : "./" + exeFile;
+        args = "";
+    }
+
+    try
+    {
+        using Process run = new Process();
+
+        run.StartInfo.FileName = program;
+        run.StartInfo.Arguments = args;
+        run.StartInfo.UseShellExecute = false;
+        run.StartInfo.RedirectStandardOutput = true;
+        run.StartInfo.RedirectStandardError = true;
+
+        run.Start();
+        
+        bool finished = run.WaitForExit(10000);
+
+        if (!finished)
         {
-            program = "flatpak-spawn";
-            args = "--host ./" + exeFile;
+            try
+            {
+                run.Kill(entireProcessTree: true);
+            }
+            catch
+            {
+            }
+
+            this.ProgramOutput = "";
+            this.ErrorMessage = "Execution timeout: the generated program did not finish within 10 seconds.";
+            this.CompilationSuccess = false;
+            return;
+        }
+
+        this.ProgramOutput = run.StandardOutput.ReadToEnd();
+        string stderr = run.StandardError.ReadToEnd();
+
+        if (run.ExitCode == 0)
+        {
+            this.CompilationSuccess = true;
         }
         else
         {
-            program = isWindows ? exeFile : "./" + exeFile;
-            args = "";
-        }
+            this.ErrorMessage = "El programa terminó con código " + run.ExitCode;
 
-        try
-        {
-            Process run = new Process();
-            run.StartInfo.FileName = program;
-            run.StartInfo.Arguments = args;
-            run.StartInfo.UseShellExecute = false;
-            run.StartInfo.RedirectStandardOutput = true;
-            run.StartInfo.RedirectStandardError = true;
-            run.Start();
+            if (!string.IsNullOrEmpty(stderr))
+                this.ErrorMessage += ": " + stderr;
 
-            this.ProgramOutput = run.StandardOutput.ReadToEnd();
-            string stderr = run.StandardError.ReadToEnd();
-            run.WaitForExit();
-
-            if (run.ExitCode == 0)
-            {
-                this.CompilationSuccess = true;
-            }
-            else
-            {
-                this.ErrorMessage = "El programa terminó con código " + run.ExitCode;
-                if (!string.IsNullOrEmpty(stderr))
-                    this.ErrorMessage += ": " + stderr;
-                this.CompilationSuccess = false;
-            }
-        }
-        catch (Exception e)
-        {
-            this.ErrorMessage = "No se pudo ejecutar el programa: " + e.Message;
             this.CompilationSuccess = false;
         }
     }
+    catch (Exception e)
+    {
+        this.ErrorMessage = "No se pudo ejecutar el programa: " + e.Message;
+        this.CompilationSuccess = false;
+    }
+}
 
 
     /// <summary>
@@ -498,10 +543,19 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
         if (ctx is MiniGoCompilerParser.SliceTypeDeclContext sliceCtx)
         {
             var sliceDecl = sliceCtx.sliceDeclType();
+
             LLVMTypeRef elementType = ResolveLLVMType(sliceDecl.declType());
             LLVMTypeRef pointerToElement = PointerType(elementType, 0);
+
             LLVMTypeRef[] sliceFields = { pointerToElement, intType, intType };
-            return LLVMTypeRef.CreateStruct(sliceFields, false);
+
+            LLVMTypeRef sliceType = LLVMTypeRef.CreateStruct(sliceFields, false);
+
+            // Store the slice element type explicitly.
+            // This avoids relying on pointer element type recovery.
+            sliceElementTypes[sliceType.Handle] = elementType;
+
+            return sliceType;
         }
 
         if (ctx is MiniGoCompilerParser.StructTypeDeclContext structCtx)
@@ -559,6 +613,59 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
     }
 
     /// <summary>
+    /// Extracts the inner <see cref="MiniGoCompilerParser.IdentifierContext"/>
+    /// when a primary expression is a bare identifier (l-value, callee, array
+    /// base, struct base). Throws a descriptive exception when the primary
+    /// expression is not a simple identifier (e.g. a chained selector or
+    /// function call result), which the current encoder does not support.
+    /// </summary>
+    private MiniGoCompilerParser.IdentifierContext ExtractIdentifier(
+        MiniGoCompilerParser.PrimaryExpressionContext primary,
+        string errorMessage)
+    {
+        if (primary is MiniGoCompilerParser.OperandPrimaryExprContext opCtx &&
+            opCtx.operand() is MiniGoCompilerParser.IdOperandContext idOp)
+        {
+            return idOp.identifier();
+        }
+
+        throw new Exception("Code generation: " + errorMessage +
+                            " (got '" + primary.GetText() + "')");
+    }
+
+    /// <summary>
+    /// Resolves an identifier-use node to its allocated storage and LLVM type,
+    /// using the semantic declaration attached by the type checker as the key.
+    /// Throws a descriptive exception when the identifier has no <c>decl</c>
+    /// (which would indicate the type checker did not visit this use site) or
+    /// when the binding is missing from the encoder's tables (which would
+    /// indicate the declaration was never emitted).
+    /// </summary>
+    private LLVMValueRef ResolveIdentifier(
+        MiniGoCompilerParser.IdentifierContext id,
+        out LLVMTypeRef type)
+    {
+        if (id == null)
+            throw new Exception("Code generation: null identifier node");
+
+        string name = id.IDENTIFIER().GetText();
+
+        if (id.decl == null)
+            throw new Exception(
+                "Code generation: identifier '" + name +
+                "' has no semantic declaration (decl is null)");
+
+        var key = (id.decl, name);
+        if (!referenceTable.TryGetValue(key, out LLVMValueRef ptr))
+            throw new Exception(
+                "Code generation: identifier '" + name +
+                "' has no allocated storage in the current scope");
+
+        type = typeTable[key];
+        return ptr;
+    }
+
+    /// <summary>
     /// Emits an <c>alloca</c> instruction at the beginning of the current
     /// function's entry block, then restores the builder position. This
     /// ensures all allocas are in the entry block for correct SSA form.
@@ -599,6 +706,7 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
         for (int i = 0; i < identifiers.Length; i++)
         {
             string name = identifiers[i].Symbol.Text;
+            var key = ((ParserRuleContext)context, name);
             if (currentFunc.Handle == IntPtr.Zero)
             {
                 LLVMValueRef global;
@@ -608,31 +716,69 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
 
                 SetInitializer(global, initialValue);
 
-                referenceTable[name] = global;
-                typeTable[name] = type;
+                referenceTable[key] = global;
+                typeTable[key] = type;
                 continue;
             }
 
             LLVMValueRef alloca = AllocaInEntry(type, name);
             BuildStore(builder, values.ElementAt(i), alloca);
-            referenceTable[name] = alloca;
-            typeTable[name] = type;
+            referenceTable[key] = alloca;
+            typeTable[key] = type;
         }
 
         return null;
     }
 
     /// <summary>
-    /// Creates a global null-terminated string constant and returns a pointer to it.
+    /// Creates a null-terminated string constant and returns an i8* pointer to it.
+    /// Works both inside functions and at global scope.
     /// </summary>
     private unsafe LLVMValueRef GlobalString(string text, string name)
     {
-        if (currentFunc.Handle == IntPtr.Zero)
-            return ConstNull(stringType);
-        fixed (byte* t = System.Text.Encoding.UTF8.GetBytes(text + "\0"))
-        fixed (byte* p = System.Text.Encoding.UTF8.GetBytes(name + "\0"))
+        string uniqueName = name + "_str_" + Guid.NewGuid().ToString("N");
+
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(text + "\0");
+
+        LLVMTypeRef arrayType = ArrayType(Int8Type(), (uint)bytes.Length);
+
+        LLVMValueRef global;
+
+        fixed (byte* p = S(uniqueName))
         {
-            return BuildGlobalStringPtr(builder, (sbyte*)t, (sbyte*)p);
+            global = AddGlobal(module, arrayType, (sbyte*)p);
+        }
+
+        LLVMValueRef[] chars = new LLVMValueRef[bytes.Length];
+
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            chars[i] = ConstInt(Int8Type(), bytes[i], 0);
+        }
+
+        LLVMValueRef initializer;
+
+        fixed (LLVMValueRef* charPtr = chars)
+        {
+            initializer = ConstArray(Int8Type(), (LLVMOpaqueValue**)charPtr, (uint)chars.Length);
+        }
+
+        SetInitializer(global, initializer);
+        SetGlobalConstant(global, 1);
+        SetLinkage(global, LLVMLinkage.LLVMPrivateLinkage);
+
+        LLVMValueRef zero = ConstInt(intType, 0, 0);
+        LLVMValueRef[] indices = { zero, zero };
+
+        fixed (LLVMValueRef* idxPtr = indices)
+        fixed (byte* p = S(uniqueName + "_ptr"))
+        {
+            return ConstGEP2(
+                arrayType,
+                global,
+                (LLVMOpaqueValue**)idxPtr,
+                2
+            );
         }
     }
 
@@ -678,20 +824,21 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
         {
             type = TypeOf(values.ElementAt(i));
             string name = identifiers[i].Symbol.Text;
+            var key = ((ParserRuleContext)context, name);
             if (currentFunc.Handle == IntPtr.Zero)
             {
                 LLVMValueRef global;
                 fixed (byte* p = S(name)) global = AddGlobal(module, type, (sbyte*)p);
                 SetInitializer(global, values.ElementAt(i));
-                referenceTable[name] = global;
-                typeTable[name] = type;
+                referenceTable[key] = global;
+                typeTable[key] = type;
                 continue;
             }
 
             LLVMValueRef alloca = AllocaInEntry(type, name);
             BuildStore(builder, values.ElementAt(i), alloca);
-            referenceTable[name] = alloca;
-            typeTable[name] = type;
+            referenceTable[key] = alloca;
+            typeTable[key] = type;
         }
 
         return null;
@@ -715,20 +862,21 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
         foreach (var id in context.identifierList().IDENTIFIER())
         {
             string name = id.Symbol.Text;
+            var key = ((ParserRuleContext)context, name);
             if (currentFunc.Handle == IntPtr.Zero)
             {
                 LLVMValueRef global;
                 fixed (byte* p = S(name)) global = AddGlobal(module, type, (sbyte*)p);
                 SetInitializer(global, ConstNull(type));
-                referenceTable[name] = global;
-                typeTable[name] = type;
+                referenceTable[key] = global;
+                typeTable[key] = type;
                 continue;
             }
 
             LLVMValueRef alloca = AllocaInEntry(type, name);
             BuildStore(builder, ConstNull(type), alloca);
-            referenceTable[name] = alloca;
-            typeTable[name] = type;
+            referenceTable[key] = alloca;
+            typeTable[key] = type;
         }
 
         return null;
@@ -790,8 +938,8 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
 
         var front = context.funcFrontDecl();
         string funcName = front.IDENTIFIER().GetText();
-        var savedRefs = new Dictionary<string, LLVMValueRef>(referenceTable);
-        var savedTypes = new Dictionary<string, LLVMTypeRef>(typeTable);
+        var savedRefs = new Dictionary<(ParserRuleContext, string), LLVMValueRef>(referenceTable);
+        var savedTypes = new Dictionary<(ParserRuleContext, string), LLVMTypeRef>(typeTable);
 
 
         LLVMTypeRef retType = front.declType() != null
@@ -837,10 +985,11 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
                 foreach (var id in param.identifierList().IDENTIFIER())
                 {
                     string paramName = id.Symbol.Text;
+                    var paramKey = ((ParserRuleContext)param, paramName);
                     LLVMValueRef alloca = AllocaVar(paramType, paramName);
                     BuildStore(builder, func.GetParam((uint)paramIndex), alloca);
-                    referenceTable[paramName] = alloca;
-                    typeTable[paramName] = paramType;
+                    referenceTable[paramKey] = alloca;
+                    typeTable[paramKey] = paramType;
                     paramIndex++;
                 }
             }
@@ -1289,8 +1438,13 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public unsafe override object VisitIndexPrimaryExpr(MiniGoCompilerParser.IndexPrimaryExprContext context)
     {
-        LLVMValueRef elementPtr = GetArrayElementPointer(context, out LLVMTypeRef elementType);
-        return LoadVar(elementType, elementPtr, "array_elem_load");
+        LLVMValueRef elementPtr = GetIndexedElementPointer(
+            context,
+            out LLVMTypeRef elementType,
+            isWriteTarget: false
+        );
+
+        return LoadVar(elementType, elementPtr, "indexed_elem_load");
     }
 
     /// <summary>
@@ -1299,10 +1453,10 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public unsafe override object VisitSelectorPrimaryExpr(MiniGoCompilerParser.SelectorPrimaryExprContext ctx)
     {
-        string structName = ctx.primaryExpression().GetText();
+        var structId = ExtractIdentifier(ctx.primaryExpression(),
+            "Struct base of '.' must be a simple identifier");
         string fieldName = ctx.selector().IDENTIFIER().GetText();
-        LLVMValueRef structPtr = referenceTable[structName];
-        LLVMTypeRef structType = typeTable[structName];
+        LLVMValueRef structPtr = ResolveIdentifier(structId, out LLVMTypeRef structType);
 
         uint fieldIndex = 0;
         if (structFieldNames.TryGetValue(structType.Handle, out List<string> fields))
@@ -1382,8 +1536,7 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
             return f;
         }
 
-        LLVMTypeRef type = typeTable[name];
-        LLVMValueRef value = referenceTable[name];
+        LLVMValueRef value = ResolveIdentifier(context.identifier(), out LLVMTypeRef type);
         LLVMValueRef variable = LoadVar(type, value, name);
         return variable;
     }
@@ -1652,26 +1805,34 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
     /// terminator instruction (return, break) has already been emitted.
     /// </summary>
     public unsafe override object VisitStatementList(MiniGoCompilerParser.StatementListContext context)
+{
+    foreach (var stmt in context.statement())
     {
-        foreach (var stmt in context.statement())
+        if (CodeGenErrors.Count > 0)
+            break;
+
+        LLVMBasicBlockRef currentBlock = GetInsertBlock(builder);
+
+        if (GetBasicBlockTerminator(currentBlock) != null)
+            break;
+
+        try
         {
-            LLVMBasicBlockRef currentBlock = GetInsertBlock(builder);
-            if (GetBasicBlockTerminator(currentBlock) != null)
-                break;
-            try
-            {
-                Visit(stmt);
-            }
-            catch (Exception ex)
-            {
-                CodeGenErrors.Add("CODE GEN: " + ex.Message
-                                               + " [line " + stmt.Start.Line + ", col " + stmt.Start.Column + "]");
-            }
+            Visit(stmt);
         }
+        catch (Exception ex)
+        {
+            CodeGenErrors.Add(
+                "CODE GEN: " + ex.Message +
+                " [line " + stmt.Start.Line + ", col " + stmt.Start.Column + "]"
+            );
 
-        return null;
-
+            break;
+        }
     }
+
+    return null;
+}
 
     /// <summary>
     /// Visits a block statement, saving and restoring the reference and type
@@ -1679,8 +1840,8 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
     /// </summary>
     public override object VisitBlock(MiniGoCompilerParser.BlockContext context)
     {
-        var savedRefs = new Dictionary<string, LLVMValueRef>(referenceTable);
-        var savedTypes = new Dictionary<string, LLVMTypeRef>(typeTable);
+        var savedRefs = new Dictionary<(ParserRuleContext, string), LLVMValueRef>(referenceTable);
+        var savedTypes = new Dictionary<(ParserRuleContext, string), LLVMTypeRef>(typeTable);
 
         Visit(context.statementList());
 
@@ -1998,47 +2159,54 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
         for (int i = 0; i < leftExprs.Length; i++)
         {
             string name = leftExprs[i].GetText();
+            var key = ((ParserRuleContext)context, name);
             LLVMValueRef value = values.ElementAt(i);
             LLVMTypeRef type = TypeOf(value);
             LLVMValueRef alloca = AllocaInEntry(type, name);
             BuildStore(builder, value, alloca);
-            referenceTable[name] = alloca;
-            typeTable[name] = type;
+            referenceTable[key] = alloca;
+            typeTable[key] = type;
         }
 
         return null;
     }
 
 
-    // -------------------------------------------------------------------------
-    //  L-value resolution (array indexing, variable pointers)
-    // -------------------------------------------------------------------------
-
     /// <summary>
-    /// Computes a GEP pointer to an array element for indexed access.
-    /// Returns the element pointer and outputs the element's LLVM type.
-    /// </summary>
-    private unsafe LLVMValueRef GetArrayElementPointer(
-        MiniGoCompilerParser.IndexPrimaryExprContext context,
-        out LLVMTypeRef elementType)
+/// Computes a pointer to an indexed element. Supports:
+/// - fixed-size arrays: [N]T
+/// - slices: []T represented as { T*, i32 len, i32 cap }
+/// - strings: i8* indexed as rune/byte values
+/// </summary>
+/// <param name="context">Index expression context.</param>
+/// <param name="elementType">Resolved LLVM element type.</param>
+/// <param name="isWriteTarget">
+/// True when the indexed expression is used as an assignment target.
+/// String indexing is read-only, so writing into a string is rejected.
+/// </param>
+private unsafe LLVMValueRef GetIndexedElementPointer(
+    MiniGoCompilerParser.IndexPrimaryExprContext context,
+    out LLVMTypeRef elementType,
+    bool isWriteTarget)
+{
+    var baseId = ExtractIdentifier(
+        context.primaryExpression(),
+        "Base of '[...]' must be a simple identifier"
+    );
+
+    string baseName = baseId.IDENTIFIER().GetText();
+    LLVMValueRef basePtr = ResolveIdentifier(baseId, out LLVMTypeRef baseType);
+
+    LLVMValueRef indexValue = (LLVMValueRef)Visit(context.index().expression());
+
+    // ------------------------------------------------------------
+    // Case 1: fixed-size array
+    // Example:
+    //   var arr [3]int;
+    //   arr[0] = 10;
+    // ------------------------------------------------------------
+    if (baseType.Kind == LLVMTypeKind.LLVMArrayTypeKind)
     {
-        string arrayName = context.primaryExpression().GetText();
-
-        if (!referenceTable.ContainsKey(arrayName))
-        {
-            throw new Exception("Undefined array variable: " + arrayName);
-        }
-
-        LLVMValueRef arrayPtr = referenceTable[arrayName];
-        LLVMTypeRef arrayType = typeTable[arrayName];
-
-        if (arrayType.Kind != LLVMTypeKind.LLVMArrayTypeKind)
-        {
-            throw new Exception("Indexing is only implemented for arrays in code generation: " + arrayName);
-        }
-
-        LLVMValueRef indexValue = (LLVMValueRef)Visit(context.index().expression());
-
         LLVMValueRef zero = ConstInt(intType, 0, 0);
         LLVMValueRef[] indices = { zero, indexValue };
 
@@ -2049,17 +2217,112 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
         {
             elementPtr = BuildGEP2(
                 builder,
-                arrayType,
-                arrayPtr,
+                baseType,
+                basePtr,
                 (LLVMOpaqueValue**)idxPtr,
                 2,
                 (sbyte*)p
             );
         }
 
-        elementType = GetElementType(arrayType);
+        elementType = GetElementType(baseType);
         return elementPtr;
     }
+
+    // ------------------------------------------------------------
+    // Case 2: slice
+    //
+    // Slice representation:
+    //   { T*, i32 len, i32 cap }
+    //
+    // To access sl[i]:
+    //   1. load the slice struct
+    //   2. extract field 0: data pointer
+    //   3. GEP over the data pointer
+    // ------------------------------------------------------------
+    if (baseType.Kind == LLVMTypeKind.LLVMStructTypeKind &&
+        sliceElementTypes.ContainsKey(baseType.Handle))
+    {
+        LLVMValueRef sliceValue = LoadVar(baseType, basePtr, "slice_load");
+
+        LLVMValueRef dataPtr;
+        fixed (byte* p = S("slice_data_ptr"))
+        {
+            dataPtr = BuildExtractValue(builder, sliceValue, 0, (sbyte*)p);
+        }
+
+        if (!sliceElementTypes.TryGetValue(baseType.Handle, out elementType))
+        {
+            throw new Exception(
+                "Internal code generation error: missing element type metadata for slice " + baseName
+            );
+        }
+
+        LLVMValueRef[] indices = { indexValue };
+        LLVMValueRef elementPtr;
+
+        fixed (LLVMValueRef* idxPtr = indices)
+        fixed (byte* p = S("slice_elem_ptr"))
+        {
+            elementPtr = BuildGEP2(
+                builder,
+                elementType,
+                dataPtr,
+                (LLVMOpaqueValue**)idxPtr,
+                1,
+                (sbyte*)p
+            );
+        }
+
+        return elementPtr;
+    }
+
+    // ------------------------------------------------------------
+    // Case 3: string
+    //
+    // A string is represented as i8*.
+    // Indexing returns a rune/byte value.
+    //
+    // Example:
+    //   var s string = "test";
+    //   var ch rune = s[0];
+    // ------------------------------------------------------------
+    if (baseType == stringType)
+    {
+        if (isWriteTarget)
+        {
+            throw new Exception(
+                "String indexing is read-only in code generation: " + baseName
+            );
+        }
+
+        LLVMValueRef stringPtr = LoadVar(stringType, basePtr, "string_load");
+
+        elementType = runeType;
+
+        LLVMValueRef[] indices = { indexValue };
+        LLVMValueRef charPtr;
+
+        fixed (LLVMValueRef* idxPtr = indices)
+        fixed (byte* p = S("string_char_ptr"))
+        {
+            charPtr = BuildGEP2(
+                builder,
+                runeType,
+                stringPtr,
+                (LLVMOpaqueValue**)idxPtr,
+                1,
+                (sbyte*)p
+            );
+        }
+
+        return charPtr;
+    }
+
+    throw new Exception(
+        "Indexing is only implemented for arrays, slices and strings in code generation: " + baseName
+    );
+}
 
     /// <summary>
     /// Resolves an expression to an assignable l-value pointer. Handles simple
@@ -2077,28 +2340,24 @@ public class MiniGoEncoder : MiniGoCompilerBaseVisitor<object>
             if (primary is MiniGoCompilerParser.OperandPrimaryExprContext operandPrimary &&
                 operandPrimary.operand() is MiniGoCompilerParser.IdOperandContext idOperand)
             {
-                string name = idOperand.identifier().GetText();
-
-                if (!referenceTable.ContainsKey(name))
-                {
-                    throw new Exception("Undefined variable: " + name);
-                }
-
-                valueType = typeTable[name];
-                return referenceTable[name];
+                return ResolveIdentifier(idOperand.identifier(), out valueType);
             }
 
             if (primary is MiniGoCompilerParser.IndexPrimaryExprContext indexPrimary)
             {
-                return GetArrayElementPointer(indexPrimary, out valueType);
+                return GetIndexedElementPointer(
+                    indexPrimary,
+                    out valueType,
+                    isWriteTarget: true
+                );
             }
 
             if (primary is MiniGoCompilerParser.SelectorPrimaryExprContext selectorPrimary)
             {
-                string structName = selectorPrimary.primaryExpression().GetText();
+                var structId = ExtractIdentifier(selectorPrimary.primaryExpression(),
+                    "Struct base of '.' must be a simple identifier");
                 string fieldName = selectorPrimary.selector().IDENTIFIER().GetText();
-                LLVMValueRef structPtr = referenceTable[structName];
-                LLVMTypeRef structType = typeTable[structName];
+                LLVMValueRef structPtr = ResolveIdentifier(structId, out LLVMTypeRef structType);
 
                 uint fieldIndex = 0;
                 if (structFieldNames.TryGetValue(structType.Handle, out List<string> fields))

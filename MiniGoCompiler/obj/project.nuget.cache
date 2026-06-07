@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "3X+7QQgduSU=",
+  "dgSpecHash": "ueiY2junDBw=",
   "success": true,
   "projectFilePath": "/home/sharonblancopiedra/Documents/VII SEMESTRE/COMPILADORES/SEMANA 12/MiniGoCompiler/MiniGoCompiler/MiniGoCompiler.csproj",
   "expectedPackageFiles": [
@@ -8,8 +8,6 @@
     "/home/sharonblancopiedra/.nuget/packages/libllvm/20.1.2/libllvm.20.1.2.nupkg.sha512",
     "/home/sharonblancopiedra/.nuget/packages/llvmsharp/20.1.2/llvmsharp.20.1.2.nupkg.sha512",
     "/home/sharonblancopiedra/.nuget/packages/llvmsharp.interop/20.1.2/llvmsharp.interop.20.1.2.nupkg.sha512",
-    "/home/sharonblancopiedra/.nuget/packages/microsoft.netcore.app.ref/9.0.16/microsoft.netcore.app.ref.9.0.16.nupkg.sha512",
-    "/home/sharonblancopiedra/.nuget/packages/microsoft.aspnetcore.app.ref/9.0.16/microsoft.aspnetcore.app.ref.9.0.16.nupkg.sha512",
     "/home/sharonblancopiedra/.nuget/packages/microsoft.netcore.app.host.linux-x64/9.0.16/microsoft.netcore.app.host.linux-x64.9.0.16.nupkg.sha512"
   ],
   "logs": []

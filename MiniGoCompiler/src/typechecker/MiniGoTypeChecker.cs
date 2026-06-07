@@ -953,7 +953,7 @@ public class MiniGoTypeChecker : MiniGoCompilerBaseVisitor<object>
 
             if (type.Category == "simple" && type.SimpleType == 2)
             {
-                return new SymbolsTable.TypeInfo("simple", 3, 0, null, null); // string[i] retorna rune
+                return new SymbolsTable.TypeInfo("simple", 3, 0, null, null);
             }
 
             syntaxError("Cannot index this type", context.index().RIGHTB().Symbol);

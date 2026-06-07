@@ -219,15 +219,36 @@
         /* ═══ OUTPUT BOTTOM PANEL (Salida del programa / LLVM IR) ═══ */
         .bottom-panel {
             background: var(--bg-panel);
-            border-top: 2px solid var(--accent-go);
+            border-top: none;
             display: none;
             flex-direction: column;
-            max-height: 250px;
+            height: 250px;
             min-height: 120px;
+            max-height: 70vh;
+            overflow: hidden;
         }
 
         .bottom-panel.visible {
             display: flex;
+        }
+
+        /* ═══ RESIZE HANDLE VERTICAL (editor ↔ bottom panel) ═══ */
+        .resize-handle-vertical {
+            height: 5px;
+            cursor: row-resize;
+            background: var(--accent-go);
+            flex-shrink: 0;
+            display: none;
+            transition: background 0.2s;
+        }
+
+        .resize-handle-vertical:hover,
+        .resize-handle-vertical.active {
+            background: #33c0e3;
+        }
+
+        .resize-handle-vertical.visible {
+            display: block;
         }
 
         .bottom-tabs {
@@ -267,6 +288,7 @@
             font-size: 12px;
             overflow-y: auto;
             flex: 1;
+            min-height: 0;
             white-space: pre-wrap;
             line-height: 1.6;
         }
@@ -511,6 +533,9 @@
             </div>
             <div id="editor-container"></div>
         </div>
+
+        <!-- Resize handle vertical (arrastrar para redimensionar panel de salida) -->
+        <div class="resize-handle-vertical" id="resizeHandleVertical"></div>
 
         <!-- Panel inferior: salida del programa y LLVM IR -->
         <div class="bottom-panel" id="bottomPanel">
@@ -852,13 +877,15 @@
         }
 
         // ── Panel inferior: salida del programa y LLVM IR ──
-        var bottomPanel   = document.getElementById('bottomPanel');
-        var programOutput = document.getElementById('programOutput');
-        var llvmIR        = document.getElementById('llvmIR');
+        var bottomPanel       = document.getElementById('bottomPanel');
+        var programOutput     = document.getElementById('programOutput');
+        var llvmIR            = document.getElementById('llvmIR');
+        var resizeHandleV     = document.getElementById('resizeHandleVertical');
 
         if (result.success && (result.output || result.ir)) {
             // Compilación exitosa con output del encoder
             bottomPanel.classList.add('visible');
+            resizeHandleV.classList.add('visible');
             programOutput.textContent = result.output || '(el programa no produjo salida)';
             programOutput.className   = 'bottom-content success';
             llvmIR.textContent        = result.ir || '';
@@ -867,6 +894,7 @@
         } else if (result.ir) {
             // Hubo IR pero falló el link/ejecución
             bottomPanel.classList.add('visible');
+            resizeHandleV.classList.add('visible');
             programOutput.textContent = result.output || '(error durante la ejecución)';
             programOutput.className   = 'bottom-content error-output';
             llvmIR.textContent        = result.ir;
@@ -875,6 +903,7 @@
         } else {
             // Errores de sintaxis/tipos: no hay nada que mostrar abajo
             bottomPanel.classList.remove('visible');
+            resizeHandleV.classList.remove('visible');
             programOutput.textContent = '';
             llvmIR.textContent        = '';
         }
@@ -918,6 +947,7 @@
     function clearEditor() {
         editor.setValue('');
         document.getElementById('bottomPanel').classList.remove('visible');
+        document.getElementById('resizeHandleVertical').classList.remove('visible');
     }
 
     function openFilePicker() {
@@ -958,7 +988,7 @@
     }
 
 
-    // ═══ RESIZE HANDLE (arrastrar para redimensionar panel de errores) ═══
+    // ═══ RESIZE HANDLE HORIZONTAL (arrastrar para redimensionar panel de errores) ═══
     (function () {
         var handle = document.getElementById('resizeHandle');
         var panel  = document.getElementById('outputPanel');
@@ -977,6 +1007,45 @@
             var newWidth = window.innerWidth - e.clientX;
             if (newWidth >= 200 && newWidth <= 600) {
                 panel.style.width = newWidth + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', function () {
+            if (dragging) {
+                dragging = false;
+                handle.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        });
+    })();
+
+
+    // ═══ RESIZE HANDLE VERTICAL (arrastrar para redimensionar panel de salida) ═══
+    (function () {
+        var handle      = document.getElementById('resizeHandleVertical');
+        var bottomPanel = document.getElementById('bottomPanel');
+        var editorArea  = document.querySelector('.editor-area');
+        var dragging    = false;
+        var startY, startHeight;
+
+        handle.addEventListener('mousedown', function (e) {
+            dragging = true;
+            startY = e.clientY;
+            startHeight = bottomPanel.offsetHeight;
+            handle.classList.add('active');
+            document.body.style.cursor = 'row-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', function (e) {
+            if (!dragging) return;
+            var delta = startY - e.clientY;
+            var newHeight = startHeight + delta;
+            var maxHeight = editorArea.offsetHeight * 0.7;
+            if (newHeight >= 120 && newHeight <= maxHeight) {
+                bottomPanel.style.height = newHeight + 'px';
             }
         });
 
