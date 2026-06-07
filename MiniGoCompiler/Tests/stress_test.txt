@@ -1,0 +1,624 @@
+package main;
+
+// =============================================================
+// GLOBAL TYPES
+// =============================================================
+
+type Punto struct {
+    x int;
+    y int;
+};
+
+type Persona struct {
+    edad int;
+    inicial rune;
+};
+
+type Par struct {
+    a int;
+    b int;
+};
+
+// =============================================================
+// GLOBAL VARIABLES
+// =============================================================
+
+var globalCounter int = 3;
+var globalText string = "Compiler";
+var globalFlag bool = true;
+var globalRune rune = 'Z';
+
+var globalArr [6]int;
+var globalSlice []int;
+
+// =============================================================
+// BASIC FUNCTIONS
+// =============================================================
+
+func sumar(a int, b int) int {
+    return a + b;
+};
+
+func restar(a int, b int) int {
+    return a - b;
+};
+
+func multiplicar(a int, b int) int {
+    return a * b;
+};
+
+func esPar(n int) bool {
+    if n % 2 == 0 {
+        return true;
+    } else {
+        return false;
+    };
+};
+
+func maximo(a int, b int) int {
+    if a > b {
+        return a;
+    } else {
+        return b;
+    };
+};
+
+func minimo(a int, b int) int {
+    if a < b {
+        return a;
+    } else {
+        return b;
+    };
+};
+
+func clasificar(n int) int {
+    switch {
+    case n < 0:
+        return -1;
+    case n == 0:
+        return 0;
+    default:
+        return 1;
+    };
+};
+
+func letraEn(s string, i int) rune {
+    return s[i];
+};
+
+func sumarTres(a int, b int, c int) int {
+    return a + b + c;
+};
+
+func imprimirTitulo() {
+    println(`=== STRESS TEST MINIGO 02 ===`);
+    return;
+};
+
+// =============================================================
+// ARRAY FUNCTIONS
+// =============================================================
+
+func sumarArrayLocal() int {
+    var arr [5]int;
+
+    arr[0] = 2;
+    arr[1] = 4;
+    arr[2] = 6;
+    arr[3] = 8;
+    arr[4] = 10;
+
+    var i int = 0;
+    var total int = 0;
+
+    for i < len(arr) {
+        total = total + arr[i];
+        i++;
+    };
+
+    return total;
+};
+
+func llenarGlobalArray() {
+    globalArr[0] = 10;
+    globalArr[1] = 20;
+    globalArr[2] = 30;
+    globalArr[3] = 40;
+    globalArr[4] = 50;
+    globalArr[5] = 60;
+    return;
+};
+
+func sumarGlobalArray() int {
+    var i int = 0;
+    var total int = 0;
+
+    for i < len(globalArr) {
+        total = total + globalArr[i];
+        i++;
+    };
+
+    return total;
+};
+
+// =============================================================
+// SLICE FUNCTIONS
+// =============================================================
+
+func crearSliceBase() []int {
+    var sl []int;
+
+    sl = append(sl, 3);
+    sl = append(sl, 6);
+    sl = append(sl, 9);
+    sl = append(sl, 12);
+
+    return sl;
+};
+
+func sumarSlice(sl []int) int {
+    var i int = 0;
+    var total int = 0;
+
+    for i < len(sl) {
+        total = total + sl[i];
+        i++;
+    };
+
+    return total;
+};
+
+func modificarSlice(sl []int) int {
+    sl[0] = sl[0] + 100;
+    sl[1] = sl[1] + 100;
+    sl[2] = sl[0] + sl[1];
+
+    return sl[2];
+};
+
+// =============================================================
+// STRUCT FUNCTIONS
+// =============================================================
+
+func crearPunto(a int, b int) Punto {
+    var p Punto;
+
+    p.x = a;
+    p.y = b;
+
+    return p;
+};
+
+func sumarPunto(p Punto) int {
+    return p.x + p.y;
+};
+
+func crearPersona(nombre string, edad int) Persona {
+    var p Persona;
+
+    p.edad = edad;
+    p.inicial = nombre[0];
+
+    return p;
+};
+
+func crearPar(a int, b int) Par {
+    var p Par;
+
+    p.a = a;
+    p.b = b;
+
+    return p;
+};
+
+func sumarPar(p Par) int {
+    return p.a + p.b;
+};
+
+// =============================================================
+// SHADOWING TESTS
+// =============================================================
+
+func probarShadowing() {
+    var x int = 1;
+    var texto string = "ab";
+
+    println(`SHADOW 1`);
+    println(x);
+    println(texto[0], texto[1]);
+
+    {
+        var x int = 2;
+        var texto string = "xy";
+
+        println(`SHADOW 2`);
+        println(x);
+        println(texto[0], texto[1]);
+
+        {
+            var x int = 3;
+            var texto string = "mn";
+
+            println(`SHADOW 3`);
+            println(x);
+            println(texto[0], texto[1]);
+        };
+
+        println(`SHADOW 2 AGAIN`);
+        println(x);
+        println(texto[0], texto[1]);
+    };
+
+    println(`SHADOW 1 AGAIN`);
+    println(x);
+    println(texto[0], texto[1]);
+};
+
+// =============================================================
+// MAIN
+// =============================================================
+
+func main() {
+    imprimirTitulo();
+
+    // =========================================================
+    // BASIC EXPRESSIONS
+    // =========================================================
+
+    println(`BASIC EXPRESSIONS`);
+
+    var a int = 8;
+    var b int = 3;
+    var c int;
+
+    c = sumar(a, b);
+    println(c);
+
+    c = restar(a, b);
+    println(c);
+
+    c = multiplicar(a, b);
+    println(c);
+
+    c = (a + b) * (a - b);
+    println(c);
+
+    c = a * b + a - b;
+    println(c);
+
+    c = a + b * a - b;
+    println(c);
+
+    c = (a + b) * (a + b);
+    println(c);
+
+    println(esPar(a));
+    println(esPar(b));
+
+    println(maximo(a, b));
+    println(minimo(a, b));
+
+    println(clasificar(-10));
+    println(clasificar(0));
+    println(clasificar(10));
+
+    // =========================================================
+    // FLOATS, RUNES, BOOLS
+    // =========================================================
+
+    println(`FLOAT RUNE BOOL`);
+
+    var f1 float64 = 2.5;
+    var f2 float64 = 4.0;
+    var f3 float64;
+
+    f3 = f1 + f2;
+    println(f3);
+
+    f3 = f2 - f1;
+    println(f3);
+
+    f3 = f1 * f2;
+    println(f3);
+
+    f3 = f2 / f1;
+    println(f3);
+
+    var r rune = 'A';
+    println(r);
+
+    r++;
+    println(r);
+
+    r--;
+    println(r);
+
+    var flag bool = true;
+    println(flag);
+    println(!flag);
+    println(flag && true);
+    println(flag && false);
+    println(flag || false);
+
+    // =========================================================
+    // STRINGS AND STRING INDEXING
+    // =========================================================
+
+    println(`STRINGS`);
+
+    var text string = "MiniGo";
+
+    println(text[0]);
+    println(text[1]);
+    println(text[2]);
+    println(text[3]);
+    println(text[4]);
+    println(text[5]);
+
+    println(letraEn(text, 0));
+    println(letraEn(text, 5));
+
+    println(globalText[0]);
+    println(globalText[1]);
+    println(globalText[2]);
+    println(globalText[3]);
+    println(globalText[4]);
+    println(globalText[5]);
+    println(globalText[6]);
+    println(globalText[7]);
+
+    // =========================================================
+    // ARRAYS
+    // =========================================================
+
+    println(`ARRAYS`);
+
+    var arr [4]int;
+
+    arr[0] = 11;
+    arr[1] = 22;
+    arr[2] = 33;
+    arr[3] = 44;
+
+    println(arr[0], arr[1], arr[2], arr[3]);
+
+    var idx int = 0;
+    println(arr[idx]);
+
+    idx = 3;
+    println(arr[idx]);
+
+    arr[1] = arr[0] + arr[2];
+    println(arr[1]);
+
+    arr[1]++;
+    println(arr[1]);
+
+    arr[1]--;
+    println(arr[1]);
+
+    println(len(arr));
+    println(cap(arr));
+
+    println(sumarArrayLocal());
+
+    llenarGlobalArray();
+    println(globalArr[0], globalArr[1], globalArr[2], globalArr[3], globalArr[4], globalArr[5]);
+    println(sumarGlobalArray());
+
+    // =========================================================
+    // SLICES
+    // =========================================================
+
+    println(`SLICES`);
+
+    var sl []int;
+
+    sl = append(sl, 5);
+    sl = append(sl, 10);
+    sl = append(sl, 15);
+    sl = append(sl, 20);
+    sl = append(sl, 25);
+
+    println(sl[0], sl[1], sl[2], sl[3], sl[4]);
+    println(len(sl));
+    println(cap(sl));
+
+    idx = 2;
+    println(sl[idx]);
+
+    sl[idx] = 999;
+    println(sl[2]);
+
+    sl[2]++;
+    println(sl[2]);
+
+    sl[2]--;
+    println(sl[2]);
+
+    println(sumarSlice(sl));
+
+    var sl2 []int = crearSliceBase();
+    println(sl2[0], sl2[1], sl2[2], sl2[3]);
+    println(sumarSlice(sl2));
+
+    var changed int = modificarSlice(sl2);
+    println(changed);
+    println(sl2[0], sl2[1], sl2[2], sl2[3]);
+
+    globalSlice = append(globalSlice, 100);
+    globalSlice = append(globalSlice, 200);
+    globalSlice = append(globalSlice, 300);
+
+    println(globalSlice[0], globalSlice[1], globalSlice[2]);
+
+    globalSlice[1] = 888;
+    println(globalSlice[1]);
+
+    // =========================================================
+    // STRUCTS
+    // =========================================================
+
+    println(`STRUCTS`);
+
+    var p Punto;
+    p.x = 7;
+    p.y = 9;
+
+    println(p.x, p.y);
+    println(sumarPunto(p));
+
+    var p2 Punto = crearPunto(100, 200);
+    println(p2.x, p2.y);
+    println(sumarPunto(p2));
+
+    var persona Persona = crearPersona("Carlos", 21);
+    println(persona.edad);
+    println(persona.inicial);
+
+    var par Par = crearPar(arr[0], sl[0]);
+    println(par.a, par.b);
+    println(sumarPar(par));
+
+    // =========================================================
+    // CONTROL FLOW
+    // =========================================================
+
+    println(`CONTROL FLOW`);
+
+    if a > b {
+        println(`A GREATER`);
+    } else {
+        println(`B GREATER`);
+    };
+
+    if a < b {
+        println(1);
+    } else if a == b {
+        println(2);
+    } else {
+        println(3);
+    };
+
+    if local := 10; local > 5 {
+        println(local);
+    };
+
+    switch a {
+    case 1:
+        println(1);
+    case 8:
+        println(8);
+    default:
+        println(0);
+    };
+
+    switch {
+    case a > b:
+        println(`SWITCH TRUE`);
+    default:
+        println(`SWITCH FALSE`);
+    };
+
+    switch temp := 3; temp {
+    case 1:
+        println(1);
+    case 2:
+        println(2);
+    case 3:
+        println(3);
+    default:
+        println(0);
+    };
+
+    // =========================================================
+    // LOOPS
+    // =========================================================
+
+    println(`LOOPS`);
+
+    var total int = 0;
+    var i int = 0;
+
+    for i < 5 {
+        total = total + i;
+        i++;
+    };
+
+    println(total);
+
+    total = 0;
+
+    for j := 0; j < 5; j++ {
+        total = total + j;
+    };
+
+    println(total);
+
+    var arrLoop [5]int;
+    arrLoop[0] = 1;
+    arrLoop[1] = 2;
+    arrLoop[2] = 3;
+    arrLoop[3] = 4;
+    arrLoop[4] = 5;
+
+    total = 0;
+    i = 0;
+
+    for i < len(arrLoop) {
+        total = total + arrLoop[i];
+        i++;
+    };
+
+    println(total);
+
+    var slLoop []int;
+    slLoop = append(slLoop, 2);
+    slLoop = append(slLoop, 4);
+    slLoop = append(slLoop, 6);
+    slLoop = append(slLoop, 8);
+
+    total = 0;
+    i = 0;
+
+    for i < len(slLoop) {
+        total = total + slLoop[i];
+        i++;
+    };
+
+    println(total);
+
+    // =========================================================
+    // SHADOWING
+    // =========================================================
+
+    println(`SHADOWING`);
+
+    probarShadowing();
+
+    {
+        var arr [2]int;
+        arr[0] = 1000;
+        arr[1] = 2000;
+
+        var sl []int;
+        sl = append(sl, 3000);
+        sl = append(sl, 4000);
+
+        var text string = "zz";
+
+        println(arr[0], arr[1]);
+        println(sl[0], sl[1]);
+        println(text[0], text[1]);
+    };
+
+    println(`GLOBAL SUMMARY`);
+
+    println(gInt, gFloat, gRune, gBool);
+    println(gX, gY, gW, gV);
+    println(gM, gN);
+    println(gP, gQ);
+    println(globalCounter, globalRune, globalFlag);
+
+    println(`=== END STRESS TEST MINIGO 02 ===`);
+};

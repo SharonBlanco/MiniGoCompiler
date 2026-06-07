@@ -1,0 +1,399 @@
+package main;
+
+// =============================================
+// GLOBAL VARIABLES
+// =============================================
+var gEntero int;
+var gFlotante float64;
+var gRuna rune;
+var gBool bool;
+
+var gA int = 10;
+var gB float64 = 3.14;
+var gD rune = 'A';
+var gE bool = true;
+
+var gX = 42;
+var gY = 2.71;
+var gW = 'B';
+var gV = false;
+
+var gM, gN int = 1, 2;
+
+var (
+    gP int = 100;
+    gQ float64 = 9.99;
+);
+
+// =============================================
+// TYPES AND STRUCTS
+// =============================================
+type MiEntero int;
+
+type Punto struct {
+    x int;
+    y int;
+};
+
+// =============================================
+// ARRAYS
+// =============================================
+var arrGlobal [5]int;
+
+// =============================================
+// SLICES
+// =============================================
+var sliceGlobal []int;
+
+// =============================================
+// FUNCTIONS
+// =============================================
+
+// Procedure without return value
+func imprimir(val int) {
+    println(val);
+};
+
+// Function with return value
+func suma(a int, b int) int {
+    return a + b;
+};
+
+// Function with multiple parameters
+func operar(x int, y int, z float64) int {
+    println(x, y, z);
+    return x + y;
+};
+
+// Function without parameters with return value
+func obtenerValor() int {
+    return 42;
+};
+
+// Function that returns bool
+func esMayor(a int, b int) bool {
+    if a > b {
+        return true;
+    } else {
+        return false;
+    };
+};
+
+// Function with return inside switch
+func signo(n int) int {
+    switch {
+    case n > 0:
+        return 1;
+    case n < 0:
+        return -1;
+    default:
+        return 0;
+    };
+};
+
+// Void function with empty return
+func saludar() {
+    println(`Hello from MiniGo`);
+    return;
+};
+
+// =============================================
+// MAIN - exercises all language features
+// =============================================
+func main() {
+
+    // -----------------------------------------
+    // LOCAL VARIABLES
+    // -----------------------------------------
+    var a int = 5;
+    var b int = 10;
+    var c int;
+    var f float64 = 1.5;
+    var g float64 = 2.5;
+    var r rune = 'X';
+    var flag bool = true;
+
+    // Short declaration
+    x := 99;
+    y := 3.14;
+    w := 'C';
+    v := true;
+
+    // Multiple declaration
+    var m, n int = 100, 200;
+
+    // Local parenthesized block
+    var (
+        lp int = 1;
+        lq int = 2;
+    );
+
+    // -----------------------------------------
+    // ARITHMETIC EXPRESSIONS
+    // -----------------------------------------
+    c = a + b;
+    println(c);
+    c = a - b;
+    c = a * b;
+    c = a / b;
+    c = a % b;
+
+    // Float
+    var fRes float64 = f + g;
+    fRes = f - g;
+    fRes = f * g;
+    fRes = f / g;
+    println(fRes);
+
+    // Bitwise (int only)
+    c = a & b;
+    c = a | b;
+    c = a ^ b;
+    c = a << b;
+    c = a >> b;
+    c = a &^ b;
+
+    // -----------------------------------------
+    // RELATIONAL EXPRESSIONS
+    // -----------------------------------------
+    var cmp bool = a == b;
+    cmp = a != b;
+    cmp = a < b;
+    cmp = a <= b;
+    cmp = a > b;
+    cmp = a >= b;
+    cmp = f == g;
+    cmp = f < g;
+
+    // -----------------------------------------
+    // LOGICAL EXPRESSIONS
+    // -----------------------------------------
+    cmp = true && false;
+    cmp = true || false;
+    cmp = !flag;
+    cmp = flag && (a > 0);
+    cmp = flag || (b < 10);
+
+    // -----------------------------------------
+    // UNARY OPERATORS
+    // -----------------------------------------
+    c = +a;
+    c = -a;
+    c = ^a;
+    var notFlag bool = !flag;
+
+    // With parentheses
+    c = (a + b) * (a - b);
+    println(c);
+
+    // -----------------------------------------
+    // COMPOUND ASSIGNMENTS
+    // -----------------------------------------
+    c = 10;
+    c += a;
+    c -= a;
+    c *= a;
+    c /= a;
+    c %= a;
+    c &= a;
+    c |= a;
+    c ^= a;
+    c <<= a;
+    c >>= a;
+    c &^= a;
+
+    fRes = 10.0;
+    fRes += f;
+    fRes -= f;
+    fRes *= f;
+    fRes /= f;
+
+    // -----------------------------------------
+    // INCREMENT / DECREMENT
+    // -----------------------------------------
+    a++;
+    b--;
+    f++;
+    r--;
+    println(a, b, f, r);
+
+    // Multiple assignment
+    a, b = b, a;
+
+    // -----------------------------------------
+    // FUNCTION CALLS
+    // -----------------------------------------
+    c = suma(a, b);
+    println(c);
+
+    var resultado int = suma(10, 20);
+    println(resultado);
+
+    imprimir(777);
+
+    resultado = operar(a, b, f);
+
+    resultado = obtenerValor();
+    println(resultado);
+
+    flag = esMayor(a, b);
+    println(flag);
+
+    var sg int = signo(-5);
+    println(sg);
+
+    saludar();
+
+    // -----------------------------------------
+    // PRINT AND PRINTLN
+    // -----------------------------------------
+    print(a);
+    print(a, b, c);
+    println(a);
+    println(a, f, r, flag);
+    println();
+    print();
+    println(`This is a raw string`);
+
+    // -----------------------------------------
+    // IF STATEMENTS
+    // -----------------------------------------
+
+    // Simple if
+    if a > 0 {
+        println(a);
+    };
+
+    // If-else
+    if a > b {
+        println(a);
+    } else {
+        println(b);
+    };
+
+    // If-else if-else
+    if a > 10 {
+        println(1);
+    } else if a > 5 {
+        println(2);
+    } else {
+        println(3);
+    };
+
+    // If with init statement
+    if val := 10; val > 5 {
+        println(val);
+    };
+
+    // If with init + else
+    if val := 10; val > 15 {
+        println(1);
+    } else {
+        println(0);
+    };
+
+    // -----------------------------------------
+    // FOR LOOPS
+    // -----------------------------------------
+
+    // For with condition
+    var contador int = 0;
+    for contador < 5 {
+        println(contador);
+        contador++;
+    };
+
+    // Full for (C-style)
+    for i := 0; i < 5; i++ {
+        println(i);
+    };
+
+    // -----------------------------------------
+    // SWITCH
+    // -----------------------------------------
+
+    // Switch with expression
+    switch a {
+    case 1:
+        println(1);
+    case 2:
+        println(2);
+    default:
+        println(0);
+    };
+
+    // Empty switch (no expression, compares with true)
+    switch {
+    case a > 0:
+        println(a);
+    default:
+        println(0);
+    };
+
+    // Switch with init
+    switch val := 5; val {
+    case 5:
+        println(55);
+    default:
+        println(0);
+    };
+
+    // -----------------------------------------
+    // SCOPING
+    // -----------------------------------------
+    {
+        var a int = 999;
+        println(a);
+    };
+    println(a);
+
+    // -----------------------------------------
+    // ARRAYS
+    // -----------------------------------------
+    var arr [5]int;
+    arr[0] = 10;
+    arr[1] = 20;
+    arr[2] = 30;
+    arr[3] = 40;
+    arr[4] = 50;
+    println(arr[0], arr[1], arr[2]);
+
+    // Array increment
+    arr[0]++;
+
+    // LEN and CAP with array
+    var largo int = len(arr);
+    println(largo);
+    var capacidad int = cap(arr);
+    println(capacidad);
+
+    // -----------------------------------------
+    // STRUCTS
+    // -----------------------------------------
+    var p Punto;
+    p.x = 10;
+    p.y = 20;
+    var px int = p.x;
+    var py int = p.y;
+    println(px, py);
+
+    // -----------------------------------------
+    // SLICES with append, len, cap
+    // -----------------------------------------
+    var sl []int;
+    sl = append(sl, 100);
+    sl = append(sl, 200);
+    sl = append(sl, 300);
+    var slLen int = len(sl);
+    var slCap int = cap(sl);
+    println(slLen, slCap);
+
+    // -----------------------------------------
+    // VARIABLE USAGE SUMMARY
+    // -----------------------------------------
+    println(m, n, lp, lq, x, w, v);
+    println(notFlag, cmp);
+    println(gA, gB, gD, gE);
+    println(gX, gY, gW, gV);
+    println(gM, gN, gP, gQ);
+};

@@ -1,0 +1,432 @@
+package main;
+
+// =============================================================
+// TEST 1: Global variables - typed declaration without init
+// =============================================================
+var gEntero int;
+var gFlotante float64;
+var gCadena string;
+var gRuna rune;
+var gBool bool;
+
+// =============================================================
+// TEST 2: Global variables - typed declaration with init
+// =============================================================
+var gA int = 10;
+var gB float64 = 3.14;
+var gC string = "hello";
+var gD rune = 'A';
+var gE bool = true;
+
+// =============================================================
+// TEST 3: Global variables - inferred declaration (primitives only)
+// =============================================================
+var gX = 42;
+var gY = 2.71;
+var gZ = "world";
+var gW = 'B';
+var gV = false;
+
+// =============================================================
+// TEST 4: Global variables - typed multiple declaration
+// =============================================================
+var gM, gN int = 1, 2;
+
+// =============================================================
+// TEST 5: Global variables - parenthesized block
+// =============================================================
+var (
+    gP int = 100;
+    gQ float64 = 9.99;
+);
+
+// =============================================================
+// TEST 6: Type declarations
+// =============================================================
+type MiEntero int;
+type MiFlotante float64;
+
+// =============================================================
+// TEST 7: Struct type
+// =============================================================
+type Punto struct {
+    x int;
+    y int;
+};
+
+type Persona struct {
+    edad int;
+    altura float64;
+};
+
+// =============================================================
+// TEST 8: Arrays
+// =============================================================
+var arrEnteros [5]int;
+var arrFloats [3]float64;
+
+// =============================================================
+// TEST 9: Slices
+// =============================================================
+var sliceEnteros []int;
+
+// =============================================================
+// TEST 10: Function without return (procedure)
+// =============================================================
+func procedimiento() {
+    var local int = 5;
+    println(local);
+};
+
+// =============================================================
+// TEST 11: Function with return value
+// =============================================================
+func suma(a int, b int) int {
+    return a + b;
+};
+
+// =============================================================
+// TEST 12: Function with multiple parameters and types
+// =============================================================
+func mezcla(x int, y float64, nombre string) int {
+    println(x, y, nombre);
+    return x;
+};
+
+// =============================================================
+// TEST 13: Function that uses true/false
+// =============================================================
+func esPositivo(n int) bool {
+    if n > 0 {
+        return true;
+    } else {
+        return false;
+    };
+};
+
+// =============================================================
+// TEST 14: Main function - exercises everything else
+// =============================================================
+func main() {
+
+    // --- Local declarations ---
+    var a int = 1;
+    var b int = 2;
+    var c int;
+    var f float64 = 1.5;
+    var g float64 = 2.5;
+    var s string = "test";
+    var r rune = 'X';
+    var flag bool = true;
+
+    // --- Arithmetic expressions ---
+    c = a + b;
+    c = a - b;
+    c = a * b;
+    c = a / b;
+    c = a % b;
+
+    // --- Arithmetic expressions with float ---
+    var fResult float64 = f + g;
+    fResult = f - g;
+    fResult = f * g;
+    fResult = f / g;
+
+    // --- Bitwise expressions (int only) ---
+    c = a & b;
+    c = a | b;
+    c = a ^ b;
+    c = a << b;
+    c = a >> b;
+    c = a &^ b;
+
+    // --- Relational expressions ---
+    var cmp bool = a == b;
+    cmp = a != b;
+    cmp = a < b;
+    cmp = a <= b;
+    cmp = a > b;
+    cmp = a >= b;
+
+    // --- Float comparison ---
+    cmp = f == g;
+    cmp = f < g;
+
+    // --- String comparison ---
+    cmp = s == "other";
+    cmp = s != "other";
+
+    // --- Logical expressions ---
+    cmp = true && false;
+    cmp = true || false;
+    cmp = !flag;
+    cmp = flag && (a > 0);
+    cmp = flag || (b < 10);
+
+    // --- Unary operators ---
+    c = +a;
+    c = -a;
+    c = ^a;
+    var notFlag bool = !flag;
+
+    // --- Expression with parentheses ---
+    c = (a + b) * (a - b);
+
+    // --- Compound assignments ---
+    c += a;
+    c -= a;
+    c *= a;
+    c /= a;
+    c %= a;
+    c &= a;
+    c |= a;
+    c ^= a;
+    c <<= a;
+    c >>= a;
+    c &^= a;
+
+    // --- += with string (concatenation) ---
+    s += "extra";
+
+    // --- += with float ---
+    fResult += f;
+    fResult -= f;
+    fResult *= f;
+    fResult /= f;
+
+    // --- Increment and decrement ---
+    a++;
+    b--;
+    f++;
+    r--;
+
+    // --- Short declaration := ---
+    x := 99;
+    y := 3.14;
+    z := "short";
+    w := 'C';
+    v := true;
+
+    // --- Multiple assignment ---
+    a, b = b, a;
+
+    // --- Function call ---
+    c = suma(a, b);
+    var resultado int = suma(10, 20);
+
+    // --- Procedure call ---
+    procedimiento();
+
+    // --- Function call with multiple types ---
+    resultado = mezcla(a, f, s);
+
+    // --- Function call that returns bool ---
+    flag = esPositivo(a);
+
+    // --- Print and Println ---
+    print(a);
+    print(a, b, c);
+    println(a);
+    println(a, f, s, r, flag);
+    println();
+    print();
+
+    // --- Simple if ---
+    if a > 0 {
+        println(a);
+    };
+
+    // --- If-else ---
+    if a > 0 {
+        println("positive");
+    } else {
+        println("not positive");
+    };
+
+    // --- If-else if-else ---
+    if a > 0 {
+        println("positive");
+    } else if a == 0 {
+        println("zero");
+    } else {
+        println("negative");
+    };
+
+    // --- If with init statement ---
+    if x := 10; x > 5 {
+        println(x);
+    };
+
+    // --- If with init + else ---
+    if x := 10; x > 5 {
+        println("yes");
+    } else {
+        println("no");
+    };
+
+    // --- Infinite for ---
+    for {
+        break;
+    };
+
+    // --- For with condition ---
+    for a < 100 {
+        a++;
+        if a > 50 {
+            break;
+        };
+    };
+
+    // --- Full for (C-style) ---
+    for i := 0; i < 10; i++ {
+        println(i);
+    };
+
+    // --- For without condition ---
+    for i := 0;; i++ {
+        if i > 5 {
+            break;
+        };
+    };
+
+    // --- For with continue ---
+    for i := 0; i < 10; i++ {
+        if i == 5 {
+            continue;
+        };
+        println(i);
+    };
+
+    // --- Switch with expression ---
+    switch a {
+    case 1:
+        println("one");
+    case 2:
+        println("two");
+    default:
+        println("other");
+    };
+
+    // --- Empty switch (no expression) ---
+    switch {
+    case a > 0:
+        println("positive");
+    default:
+        println("not positive");
+    };
+
+    // --- Switch with init ---
+    switch x := 5; x {
+    case 5:
+        println("five");
+    default:
+        println("other");
+    };
+
+    // --- Nested block (scoping) ---
+    {
+        var a int = 999;
+        println(a);
+    };
+    println(a);
+
+    // --- Arrays: access and indexing ---
+    var arr [3]int;
+    arr[0] = 10;
+    arr[1] = 20;
+    arr[2] = 30;
+    var elem int = arr[0];
+    println(elem);
+
+    // --- Len with array ---
+    var largo int = len(arr);
+    println(largo);
+
+    // --- Len with string ---
+    largo = len(s);
+
+    // --- Cap with array ---
+    var capacidad int = cap(arr);
+
+    // --- Structs ---
+    var p Punto;
+    p.x = 10;
+    p.y = 20;
+    var px int = p.x;
+    println(px, p.y);
+
+    // --- Slices with append ---
+    var sl []int;
+    sl = append(sl, 1);
+    sl = append(sl, 2);
+    var slElem int = sl[0];
+
+    // --- Len and Cap with slice ---
+    largo = len(sl);
+    capacidad = cap(sl);
+
+    // --- String indexing returns rune ---
+    var ch rune = s[0];
+    println(ch);
+
+    // --- Local type declaration ---
+    type LocalType int;
+
+    // --- Block variable declaration ---
+    var (
+        lp int = 1;
+        lq int = 2;
+    );
+    println(lp, lq);
+
+    // --- Implicit return of main (void) ---
+};
+
+// =============================================================
+// TEST 15: Function with guaranteed return via if-else
+// =============================================================
+func absoluto(n int) int {
+    if n >= 0 {
+        return n;
+    } else {
+        return -n;
+    };
+};
+
+// =============================================================
+// TEST 16: Function with guaranteed return via switch
+// =============================================================
+func signo(n int) int {
+    switch {
+    case n > 0:
+        return 1;
+    case n < 0:
+        return -1;
+    default:
+        return 0;
+    };
+};
+
+// =============================================================
+// TEST 17: Void function with empty return (optional)
+// =============================================================
+func saludar(nombre string) {
+    println("Hello", nombre);
+    return;
+};
+
+// =============================================================
+// TEST 18: Scoping - same name at different levels
+// =============================================================
+func testScoping() {
+    var x int = 1;
+    {
+        var x int = 2;
+        println(x);
+    };
+    println(x);
+    if true {
+        var x int = 3;
+        println(x);
+    };
+};

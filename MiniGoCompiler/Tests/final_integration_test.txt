@@ -1,0 +1,508 @@
+package main;
+
+// =============================================
+// GLOBAL VARIABLES
+// =============================================
+var gInt int = 10;
+var gFloat float64 = 3.14;
+var gRune rune = 'A';
+var gBool bool = true;
+
+var gX = 42;
+var gY = 2.71;
+var gW = 'B';
+var gV = false;
+
+var gM, gN int = 1, 2;
+
+var (
+    gP int = 100;
+    gQ float64 = 9.99;
+);
+
+// =============================================
+// TYPES AND STRUCTS
+// =============================================
+type MiEntero int;
+
+type Punto struct {
+    x int;
+    y int;
+};
+
+// =============================================
+// GLOBAL ARRAY AND SLICE
+// =============================================
+var arrGlobal [5]int;
+var sliceGlobal []int;
+
+// =============================================
+// FUNCTIONS AND PROCEDURES
+// =============================================
+func imprimir(val int) {
+    println(val);
+};
+
+func suma(a int, b int) int {
+    return a + b;
+};
+
+func operar(x int, y int, z float64) int {
+    println(x, y, z);
+    return x + y;
+};
+
+func obtenerValor() int {
+    return 42;
+};
+
+func esMayor(a int, b int) bool {
+    if a > b {
+        return true;
+    } else {
+        return false;
+    };
+};
+
+func signo(n int) int {
+    switch {
+    case n > 0:
+        return 1;
+    case n < 0:
+        return -1;
+    default:
+        return 0;
+    };
+};
+
+func saludar() {
+    println(`Hello from MiniGo`);
+    return;
+};
+
+// =============================================
+// MAIN
+// =============================================
+func main() {
+    println(`=== START INTEGRAL TEST MINIGO ===`);
+
+    // -----------------------------------------
+    // LOCAL VARIABLES
+    // -----------------------------------------
+    var a int = 5;
+    var b int = 10;
+    var c int;
+    var f float64 = 1.5;
+    var g float64 = 2.5;
+    var r rune = 'X';
+    var flag bool = true;
+
+    x := 99;
+    y := 3.14;
+    w := 'C';
+    v := true;
+
+    var m, n int = 100, 200;
+
+    var (
+        lp int = 1;
+        lq int = 2;
+    );
+
+    // -----------------------------------------
+    // ARITHMETIC EXPRESSIONS
+    // -----------------------------------------
+    println(`ARITHMETIC`);
+    c = a + b;
+    println(c);
+
+    c = a - b;
+    println(c);
+
+    c = a * b;
+    println(c);
+
+    c = b / a;
+    println(c);
+
+    c = b % a;
+    println(c);
+
+    var fRes float64 = f + g;
+    println(fRes);
+
+    fRes = g - f;
+    println(fRes);
+
+    fRes = f * g;
+    println(fRes);
+
+    fRes = g / f;
+    println(fRes);
+
+    // -----------------------------------------
+    // BITWISE EXPRESSIONS
+    // -----------------------------------------
+    println(`BITWISE`);
+    c = a & b;
+    println(c);
+
+    c = a | b;
+    println(c);
+
+    c = a ^ b;
+    println(c);
+
+    c = a << 1;
+    println(c);
+
+    c = b >> 1;
+    println(c);
+
+    c = a &^ b;
+    println(c);
+
+    // -----------------------------------------
+    // RELATIONAL AND LOGICAL EXPRESSIONS
+    // -----------------------------------------
+    println(`LOGIC AND COMPARISONS`);
+
+    var cmp bool = a == b;
+    println(cmp);
+
+    cmp = a != b;
+    println(cmp);
+
+    cmp = a < b;
+    println(cmp);
+
+    cmp = a <= b;
+    println(cmp);
+
+    cmp = a > b;
+    println(cmp);
+
+    cmp = a >= b;
+    println(cmp);
+
+    cmp = true && false;
+    println(cmp);
+
+    cmp = true || false;
+    println(cmp);
+
+    cmp = !flag;
+    println(cmp);
+
+    cmp = flag && (a > 0);
+    println(cmp);
+
+    cmp = flag || (b < 10);
+    println(cmp);
+
+    // -----------------------------------------
+    // UNARY EXPRESSIONS AND PARENTHESES
+    // -----------------------------------------
+    println(`UNARY AND PARENTHESES`);
+
+    c = +a;
+    println(c);
+
+    c = -a;
+    println(c);
+
+    c = ^a;
+    println(c);
+
+    var notFlag bool = !flag;
+    println(notFlag);
+
+    c = (a + b) * (a - b);
+    println(c);
+
+    // -----------------------------------------
+    // COMPOUND ASSIGNMENTS
+    // -----------------------------------------
+    println(`COMPOUND ASSIGNMENTS`);
+
+    c = 10;
+    c += a;
+    println(c);
+
+    c -= a;
+    println(c);
+
+    c *= a;
+    println(c);
+
+    c /= a;
+    println(c);
+
+    c %= a;
+    println(c);
+
+    c = 10;
+    c &= a;
+    println(c);
+
+    c |= a;
+    println(c);
+
+    c ^= a;
+    println(c);
+
+    c <<= 1;
+    println(c);
+
+    c >>= 1;
+    println(c);
+
+    c &^= a;
+    println(c);
+
+    fRes = 10.0;
+    fRes += f;
+    println(fRes);
+
+    fRes -= f;
+    println(fRes);
+
+    fRes *= f;
+    println(fRes);
+
+    fRes /= f;
+    println(fRes);
+
+    // -----------------------------------------
+    // INCREMENT / DECREMENT
+    // -----------------------------------------
+    println(`INCREMENT AND DECREMENT`);
+
+    a++;
+    b--;
+    f++;
+    r--;
+
+    println(a, b, f, r);
+
+    a, b = b, a;
+    println(a, b);
+
+    // -----------------------------------------
+    // FUNCTION CALLS
+    // -----------------------------------------
+    println(`FUNCTIONS`);
+
+    c = suma(a, b);
+    println(c);
+
+    var resultado int = suma(10, 20);
+    println(resultado);
+
+    imprimir(777);
+
+    resultado = operar(a, b, f);
+    println(resultado);
+
+    resultado = obtenerValor();
+    println(resultado);
+
+    flag = esMayor(a, b);
+    println(flag);
+
+    var sg int = signo(-5);
+    println(sg);
+
+    saludar();
+
+    // -----------------------------------------
+    // PRINT AND PRINTLN
+    // -----------------------------------------
+    println(`PRINT AND PRINTLN`);
+
+    print(a);
+    print(a, b, c);
+    println(a);
+
+    println(a, f, r, flag);
+    println();
+    print();
+    println(`This is a raw string`);
+
+    // -----------------------------------------
+    // IF STATEMENTS
+    // -----------------------------------------
+    println(`IF`);
+
+    if a > 0 {
+        println(a);
+    };
+
+    if a > b {
+        println(a);
+    } else {
+        println(b);
+    };
+
+    if a > 10 {
+        println(1);
+    } else if a > 5 {
+        println(2);
+    } else {
+        println(3);
+    };
+
+    if val := 10; val > 5 {
+        println(val);
+    };
+
+    if val := 10; val > 15 {
+        println(1);
+    } else {
+        println(0);
+    };
+
+    // -----------------------------------------
+    // FOR LOOPS
+    // -----------------------------------------
+    println(`FOR`);
+
+    var contador int = 0;
+    for contador < 5 {
+        println(contador);
+        contador++;
+    };
+
+    for i := 0; i < 5; i++ {
+        println(i);
+    };
+
+    // -----------------------------------------
+    // SWITCH
+    // -----------------------------------------
+    println(`SWITCH`);
+
+    switch a {
+    case 1:
+        println(1);
+    case 2:
+        println(2);
+    default:
+        println(0);
+    };
+
+    switch {
+    case a > 0:
+        println(a);
+    default:
+        println(0);
+    };
+
+    switch val := 5; val {
+    case 5:
+        println(55);
+    default:
+        println(0);
+    };
+
+    // -----------------------------------------
+    // SCOPES
+    // -----------------------------------------
+    println(`SCOPES`);
+
+    {
+        var a int = 999;
+        println(a);
+    };
+
+    println(a);
+
+    // -----------------------------------------
+    // ARRAYS
+    // -----------------------------------------
+    println(`ARRAYS`);
+
+    var arr [5]int;
+
+    arr[0] = 10;
+    arr[1] = 20;
+    arr[2] = 30;
+    arr[3] = 40;
+    arr[4] = 50;
+
+    println(arr[0], arr[1], arr[2], arr[3], arr[4]);
+
+    arr[0]++;
+    println(arr[0]);
+
+    var largo int = len(arr);
+    println(largo);
+
+    var capacidad int = cap(arr);
+    println(capacidad);
+
+    // -----------------------------------------
+    // STRUCTS
+    // -----------------------------------------
+    println(`STRUCTS`);
+
+    var p Punto;
+
+    p.x = 10;
+    p.y = 20;
+
+    var px int = p.x;
+    var py int = p.y;
+
+    println(px, py);
+
+    // -----------------------------------------
+    // SLICES
+    // -----------------------------------------
+    println(`SLICES`);
+
+    var sl []int;
+
+    sl = append(sl, 100);
+    sl = append(sl, 200);
+    sl = append(sl, 300);
+
+    var slLen int = len(sl);
+    var slCap int = cap(sl);
+
+    println(slLen, slCap);
+
+    // -----------------------------------------
+    // GLOBAL ARRAY
+    // -----------------------------------------
+    println(`GLOBAL ARRAY`);
+
+    arrGlobal[0] = 1;
+    arrGlobal[1] = 2;
+    arrGlobal[2] = 3;
+    arrGlobal[3] = 4;
+    arrGlobal[4] = 5;
+
+    println(arrGlobal[0], arrGlobal[1], arrGlobal[2], arrGlobal[3], arrGlobal[4]);
+    println(len(arrGlobal));
+
+    // -----------------------------------------
+    // GLOBAL VARIABLES SUMMARY
+    // -----------------------------------------
+    println(`GLOBALS`);
+
+    println(gInt, gFloat, gRune, gBool);
+    println(gX, gY, gW, gV);
+    println(gM, gN);
+    println(gP, gQ);
+
+    // -----------------------------------------
+    // LOCAL VARIABLES SUMMARY
+    // -----------------------------------------
+    println(`LOCAL SUMMARY`);
+
+    println(m, n, lp, lq, x, y, w, v);
+    println(notFlag, cmp);
+
+    println(`=== END INTEGRAL TEST MINIGO ===`);
+};
